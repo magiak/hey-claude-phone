@@ -1,0 +1,11 @@
+android/.gradle/
+android/build/
+android/app/build/
+android/.kotlin/
+android/local.properties
+android/vosk-assets/
+*.apk
+window_dump.xml
+__pycache__/
+# Recordings of your voice stay on your PC.
+ladeni/nahravky/

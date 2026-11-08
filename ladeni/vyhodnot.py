@@ -1,0 +1,229 @@
+# /// script
+# requires-python = ">=3.10"
+# dependencies = ["vosk"]
+# ///
+"""Wake word tuning on one recording of his voice, so he says the phrase once, not for an hour.
+
+The phone records a guided 90 s (debug extra `nahraj`): ten prompted phrases, then normal
+Czech talk. This decodes the WAV with the phone's model and grammar exactly as the app does,
+checks that it reproduces the phone's own decode, and scores grammar and threshold variants.
+
+    uv run ladeni/vyhodnot.py --stahni     # pull new recordings, score the newest
+    uv run ladeni/vyhodnot.py nahravky/x.wav
+
+Recordings stay in nahravky/ (ignored by git): his voice never leaves this PC.
+"""
+
+import argparse
+import json
+import os
+import re
+import subprocess
+import sys
+import tempfile
+import wave
+from pathlib import Path
+
+from vosk import KaldiRecognizer, Model, SetLogLevel
+
+HERE = Path(__file__).resolve().parent
+MODEL = HERE.parent / "android" / "vosk-assets" / "model"
+CONFIG = HERE.parent / "android" / "app" / "src" / "main" / "java" / "cz" / "magiak" / "asistent" / "Config.kt"
+RECORDINGS = HERE / "nahravky"
+PHONE_DIR = "/sdcard/Android/data/cz.magiak.asistent/files"
+ADB = Path(os.environ.get("LOCALAPPDATA", "")) / "Android" / "Sdk" / "platform-tools" / "adb.exe"
+
+# Must match VoiceRecording/SpeechService: 0.2 s of 16-bit mono at 16 kHz per call.
+CHUNK_BYTES = 6400
+PROMPT_S = 5.0
+# A phrase may start a little before the prompt flash if he anticipates it.
+EARLY_S = 0.5
+
+EXTRA_DECOYS = ["hay", "they", "say", "clay", "close", "clock", "okay", "hello"]
+
+
+def read_config():
+    text = CONFIG.read_text(encoding="utf-8")
+
+    def words(name):
+        return re.findall(r'"([^"]+)"', re.search(rf"val {name} = listOf(?:<String>)?\(([^)]*)\)", text).group(1))
+
+    conf = float(re.search(r"MIN_CONFIDENCE = ([0-9.]+)", text).group(1))
+    return words("WAKE_PHRASE"), words("DECOY_WORDS"), conf
+
+
+def grammar(phrase, decoys, standalone=True):
+    items = [" ".join(phrase)] + (phrase if standalone else []) + decoys + ["[unk]"]
+    return json.dumps(list(dict.fromkeys(items)))
+
+
+def missing_words(model, words):
+    """Kaldi only warns about words outside the vocabulary, on the C stderr."""
+    fd = sys.stderr.fileno()
+    saved = os.dup(fd)
+    with tempfile.TemporaryFile() as tmp:
+        os.dup2(tmp.fileno(), fd)
+        try:
+            SetLogLevel(0)
+            KaldiRecognizer(model, 16000, json.dumps(words + ["[unk]"]))
+        finally:
+            SetLogLevel(-1)
+            os.dup2(saved, fd)
+            os.close(saved)
+        tmp.seek(0)
+        log = tmp.read().decode("utf-8", "replace")
+    return [w for w in words if f"'{w}'" in log or f" {w}\n" in log or f": {w}" in log]
+
+
+def decode(model, wav_path, gram):
+    with wave.open(str(wav_path), "rb") as wav:
+        assert wav.getframerate() == 16000 and wav.getnchannels() == 1 and wav.getsampwidth() == 2
+        rec = KaldiRecognizer(model, 16000, gram)
+        rec.SetWords(True)
+        results = []
+
+        def take(raw):
+            words = json.loads(raw).get("result")
+            if words:
+                results.append(words)
+
+        while data := wav.readframes(CHUNK_BYTES // 2):
+            if rec.AcceptWaveform(data):
+                take(rec.Result())
+        take(rec.FinalResult())
+    return results
+
+
+def is_wake(words, phrase, min_conf):
+    n = len(phrase)
+    return any(
+        all(words[i + k]["word"] == phrase[k] and words[i + k]["conf"] >= min_conf for k in range(n))
+        for i in range(len(words) - n + 1)
+    )
+
+
+def is_miss(words, phrase):
+    """Same as WakeWordListener.check: a lone first word is the recognizer's silence artifact."""
+    return any(w["word"] not in ("[unk]", phrase[0]) for w in words)
+
+
+def read_marks(path):
+    marks = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line and not line.startswith("#"):
+            tag, t = line.split()
+            marks[tag] = float(t)
+    return marks
+
+
+def score(results, marks, phrase, min_conf):
+    prompts = sorted((t, tag) for tag, t in marks.items() if re.fullmatch(r"(near|far)\d+", tag))
+    talk = marks["talk"]
+    caught = {tag: False for _, tag in prompts}
+    false_hits = red_talk = red_prompt = 0
+    for words in results:
+        start = words[0]["start"]
+        hit = is_wake(words, phrase, min_conf)
+        heard = is_miss(words, phrase)
+        window = next((tag for t, tag in prompts if t - EARLY_S <= start < t + PROMPT_S), None)
+        if start >= talk:
+            false_hits += hit
+            red_talk += heard and not hit
+        elif window:
+            caught[window] |= hit
+            red_prompt += heard and not hit
+    near = sum(v for k, v in caught.items() if k.startswith("near"))
+    far = sum(v for k, v in caught.items() if k.startswith("far"))
+    return {"near": near, "far": far, "false": false_hits, "red_talk": red_talk, "red_prompt": red_prompt}
+
+
+def fmt(words):
+    return "  ".join(f"{w['word']} {w['conf']:.2f}" for w in words)
+
+
+def pull():
+    listing = subprocess.run([str(ADB), "shell", "ls", PHONE_DIR], capture_output=True, text=True, timeout=20)
+    if listing.returncode != 0:
+        sys.exit(f"Telefon není vidět přes USB: {listing.stderr.strip()}")
+    RECORDINGS.mkdir(exist_ok=True)
+    for name in listing.stdout.split():
+        # The phone's replay file is rewritten by every `prehraj`, so it is always pulled again.
+        if name.startswith("nahravka-") and (name.endswith("-telefon.txt") or not (RECORDINGS / name).exists()):
+            subprocess.run([str(ADB), "pull", f"{PHONE_DIR}/{name}", str(RECORDINGS / name)], check=True,
+                           capture_output=True, timeout=120)
+            print(f"stáhnuto: {name}")
+
+
+def parity(model, wav_path, phone_path):
+    lines = phone_path.read_text(encoding="utf-8").splitlines()
+    head = json.loads(lines[0])
+    phone = [json.loads(x)["result"] for x in lines[1:] if x.strip()]
+    pc = decode(model, wav_path, head["grammar"])
+    words_same = [[w["word"] for w in r] for r in phone] == [[w["word"] for w in r] for r in pc]
+    diffs = [abs(a["conf"] - b["conf"]) for ra, rb in zip(phone, pc) for a, b in zip(ra, rb)]
+    print(f"Shoda s telefonem (gramatika {head['grammar']}):")
+    print(f"  výsledků telefon {len(phone)}, počítač {len(pc)}, slova stejná: {'ano' if words_same else 'NE'}, "
+          f"největší rozdíl jistoty {max(diffs, default=0):.3f}")
+    if not words_same:
+        for i in range(max(len(phone), len(pc))):
+            a = fmt(phone[i]) if i < len(phone) else "-"
+            b = fmt(pc[i]) if i < len(pc) else "-"
+            if a != b:
+                print(f"  telefon: {a}\n  počítač: {b}")
+    return words_same
+
+
+def main():
+    sys.stdout.reconfigure(encoding="utf-8")
+    ap = argparse.ArgumentParser()
+    ap.add_argument("wav", nargs="?")
+    ap.add_argument("--stahni", action="store_true", help="nejdřív stáhnout nové nahrávky z telefonu")
+    args = ap.parse_args()
+    if args.stahni:
+        pull()
+    wav_path = Path(args.wav) if args.wav else max(RECORDINGS.glob("nahravka-*.wav"), default=None)
+    if not wav_path:
+        sys.exit("Žádná nahrávka v nahravky/.")
+    marks = read_marks(wav_path.with_suffix(".txt"))
+    print(f"Nahrávka: {wav_path.name}, {marks.get('end', 0):.0f} s")
+
+    SetLogLevel(-1)
+    model = Model(str(MODEL))
+    phrase, decoys, min_conf = read_config()
+
+    phone_path = wav_path.with_name(wav_path.stem + "-telefon.txt")
+    if phone_path.exists():
+        parity(model, wav_path, phone_path)
+    else:
+        print("Výsledek z telefonu chybí, shodu s počítačem neověřím.")
+
+    current = decode(model, wav_path, grammar(phrase, decoys))
+    print(f"\nCo slyšel při současném nastavení ({' '.join(phrase)}, práh {min_conf}):")
+    for words in current:
+        mark = "ZELENÁ" if is_wake(words, phrase, min_conf) else "červená" if is_miss(words, phrase) else ""
+        print(f"  {words[0]['start']:6.1f} s  {fmt(words):60s} {mark}")
+
+    absent = missing_words(model, EXTRA_DECOYS)
+    extra = [w for w in EXTRA_DECOYS if w not in absent and w not in decoys and w not in phrase]
+    variants = {
+        "současné": grammar(phrase, decoys),
+        "bez návnad": grammar(phrase, []),
+        "víc návnad": grammar(phrase, decoys + extra),
+        "jen fráze": grammar(phrase, [], standalone=False),
+    }
+    print(f"\nVarianty (z 5 zblízka a 5 z dálky; při řeči: spuštění / červená):")
+    rows = []
+    for name, gram in variants.items():
+        results = current if name == "současné" else decode(model, wav_path, gram)
+        for conf in [0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.7]:
+            s = score(results, marks, phrase, conf)
+            rows.append((name, conf, s))
+    rows.sort(key=lambda r: (r[2]["false"], -(r[2]["near"] + r[2]["far"]), r[2]["red_talk"]))
+    for name, conf, s in rows:
+        flag = " <- teď" if name == "současné" and conf == min_conf else ""
+        print(f"  {name:11s} práh {conf:.2f}:  zblízka {s['near']}/5  z dálky {s['far']}/5  "
+              f"při řeči {s['false']} / {s['red_talk']}{flag}")
+
+
+if __name__ == "__main__":
+    main()
