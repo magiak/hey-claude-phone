@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The holder's window (drzak/drzak.py) hides the notch strip plus 1 mm on the left
+         and 1 mm on the other sides, so every inset is counted from the visible edge. -->
+    <dimen name="hidden_start">40dp</dimen>
+    <dimen name="hidden_edge">6dp</dimen>
+    <!-- Hidden part plus a 32dp visible white frame around the panel. -->
+    <dimen name="frame_start">72dp</dimen>
+    <dimen name="frame_edge">38dp</dimen>
+    <!-- Stops short of the frame plus the panel's 32dp padding, so the glow never covers text. -->
+    <dimen name="glow_depth">60dp</dimen>
+</resources>

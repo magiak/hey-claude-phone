@@ -39,7 +39,7 @@ Displej drží rozsvícený aplikace sama, od 22 do 7 hodin ztlumí jas. Hlasito
 
 ## Ladění
 
-Fráze, práh jistoty, barvy, pípnutí a noční jas jsou v [`Config.kt`](android/app/src/main/java/cz/magiak/asistent/Config.kt).
+Fráze, práh jistoty, barvy záře, pípnutí a noční jas jsou v [`Config.kt`](android/app/src/main/java/cz/magiak/asistent/Config.kt). Vzhled obrazovky je v [`activity_main.xml`](android/app/src/main/res/layout/activity_main.xml), okraje podle okénka držáku v [`dimens.xml`](android/app/src/main/res/values/dimens.xml).
 
 Naladit budicí slovo na svůj hlas jde z jedné nahrávky. Spusť nahrávání, klepni na displej a minutu a půl dělej, co říká:
 

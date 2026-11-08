@@ -9,6 +9,7 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.media.AudioManager
 import android.media.ToneGenerator
+import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
@@ -76,7 +77,13 @@ class MainActivity : Activity() {
         answer = findViewById(R.id.answer)
         date = findViewById(R.id.date)
         answerSize = answer.textSize
-        window.decorView.setBackgroundColor(android.graphics.Color.BLACK)
+        window.decorView.setBackgroundColor(getColor(R.color.background))
+        // Otherwise the strip beside the camera notch stays black next to the light background.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            window.attributes = window.attributes.apply {
+                layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+            }
+        }
         // On a fresh start the system clears the hide flags again and the navigation bar stays
         // (ZenFone, 2026-11-08); a desk device has nobody to swipe it away.
         @Suppress("DEPRECATION")

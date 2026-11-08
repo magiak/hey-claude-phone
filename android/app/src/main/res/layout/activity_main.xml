@@ -1,19 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Landscape, camera notch on the left. The holder's window hides a few mm of the panel,
-     so nothing important sits within ~40dp of an edge, and the black background hides
-     where the window and the display do not quite line up. -->
+<!-- Landscape, camera notch on the left. A cream panel in a white frame, to sit in his white
+     holder (2026-11-09); a black look waits for a black holder. Insets live in dimens.xml. -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#000000">
+    android:background="@color/background">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:layout_marginStart="@dimen/frame_start"
+        android:layout_marginTop="@dimen/frame_edge"
+        android:layout_marginEnd="@dimen/frame_edge"
+        android:layout_marginBottom="@dimen/frame_edge"
+        android:background="@drawable/panel"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:padding="40dp">
+        android:paddingStart="32dp"
+        android:paddingEnd="32dp">
 
         <LinearLayout
             android:layout_width="0dp"
@@ -24,35 +29,50 @@
             <TextClock
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:fontFamily="sans-serif-light"
+                android:fontFamily="serif"
                 android:format12Hour="HH:mm"
                 android:format24Hour="HH:mm"
                 android:includeFontPadding="false"
-                android:textColor="#FFFFFF"
-                android:textSize="104sp" />
+                android:letterSpacing="-0.02"
+                android:textColor="#D97757"
+                android:textSize="100sp" />
 
             <TextView
                 android:id="@+id/date"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:textColor="#9E9E9E"
-                android:textSize="22sp" />
+                android:layout_marginTop="8dp"
+                android:textColor="#5E5D59"
+                android:textSize="20sp" />
 
-            <TextView
-                android:id="@+id/status"
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="28dp"
-                android:textColor="#757575"
-                android:textSize="14sp" />
+                android:orientation="horizontal">
+
+                <View
+                    android:layout_width="8dp"
+                    android:layout_height="8dp"
+                    android:layout_marginTop="6dp"
+                    android:background="@drawable/dot" />
+
+                <TextView
+                    android:id="@+id/status"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:textColor="#6B6A64"
+                    android:textSize="14sp" />
+            </LinearLayout>
 
             <TextView
                 android:id="@+id/heard"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
                 android:layout_marginTop="4dp"
-                android:textColor="#424242"
+                android:textColor="#A6A39A"
                 android:textSize="12sp" />
         </LinearLayout>
 
@@ -60,17 +80,22 @@
             android:id="@+id/card"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="32dp"
+            android:layout_marginStart="28dp"
             android:layout_weight="1.15"
             android:background="@drawable/card"
             android:orientation="vertical"
-            android:padding="24dp">
+            android:paddingStart="24dp"
+            android:paddingTop="22dp"
+            android:paddingEnd="24dp"
+            android:paddingBottom="22dp">
 
             <TextView
                 android:id="@+id/card_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="#D97757"
+                android:fontFamily="sans-serif-medium"
+                android:letterSpacing="0.03"
+                android:textColor="#C15F3C"
                 android:textSize="13sp" />
 
             <TextView
@@ -80,8 +105,8 @@
                 android:layout_marginTop="8dp"
                 android:ellipsize="end"
                 android:maxLines="2"
-                android:textColor="#9E9E9E"
-                android:textSize="16sp" />
+                android:textColor="#5E5D59"
+                android:textSize="15sp" />
 
             <TextView
                 android:id="@+id/answer"
@@ -89,16 +114,21 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
                 android:ellipsize="end"
-                android:lineSpacingMultiplier="1.1"
+                android:fontFamily="serif"
+                android:lineSpacingMultiplier="1.15"
                 android:maxLines="6"
-                android:textColor="#EEEEEE"
-                android:textSize="20sp" />
+                android:textColor="#141413"
+                android:textSize="19sp" />
         </LinearLayout>
     </LinearLayout>
 
-    <!-- On top, but not clickable, so taps still reach the root. -->
+    <!-- On top, but not clickable, so taps still reach the root. Padding = what the holder hides. -->
     <cz.magiak.asistent.GlowView
         android:id="@+id/glow"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="match_parent"
+        android:paddingStart="@dimen/hidden_start"
+        android:paddingTop="@dimen/hidden_edge"
+        android:paddingEnd="@dimen/hidden_edge"
+        android:paddingBottom="@dimen/hidden_edge" />
 </FrameLayout>

@@ -70,17 +70,22 @@ class GlowView(context: Context, attrs: AttributeSet? = null) : View(context, at
         if (level <= 0f) return
         val w = width.toFloat()
         val h = height.toFloat()
-        val depth = minOf(w, h) * 0.2f
+        val l = paddingLeft.toFloat()
+        val t = paddingTop.toFloat()
+        val r = w - paddingRight
+        val b = h - paddingBottom
+        val depth = resources.getDimension(R.dimen.glow_depth)
         val c = color
         val edge = Color.argb((255 * level).toInt(), Color.red(c), Color.green(c), Color.blue(c))
         fun band(x0: Float, y0: Float, x1: Float, y1: Float, l: Float, t: Float, r: Float, b: Float) {
             paint.shader = LinearGradient(x0, y0, x1, y1, edge, Color.TRANSPARENT, Shader.TileMode.CLAMP)
             canvas.drawRect(l, t, r, b, paint)
         }
-        band(0f, 0f, depth, 0f, 0f, 0f, depth, h)
-        band(w, 0f, w - depth, 0f, w - depth, 0f, w, h)
-        band(0f, 0f, 0f, depth, 0f, 0f, w, depth)
-        band(0f, h, 0f, h - depth, 0f, h - depth, w, h)
+        // Gradients start at the padding (the holder's visible edge); CLAMP fills the hidden strip.
+        band(l, 0f, l + depth, 0f, 0f, 0f, l + depth, h)
+        band(r, 0f, r - depth, 0f, r - depth, 0f, w, h)
+        band(0f, t, 0f, t + depth, 0f, 0f, w, t + depth)
+        band(0f, b, 0f, b - depth, 0f, b - depth, w, h)
     }
 
     private companion object {
