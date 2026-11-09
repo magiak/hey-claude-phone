@@ -31,6 +31,20 @@ object CustomScreen {
         changed()
     }
 
+    /** The native dashboard as a page in the current look, so asking for one more thing keeps the clock. */
+    fun original(context: Context): String =
+        context.resources.openRawResource(R.raw.hodiny).bufferedReader().use { it.readText() }
+            .replace("/*barvy*/", palette(context))
+            .replace("{wake}", Config.WAKE_LABEL)
+
+    fun palette(context: Context): String {
+        val dark = UserSettings.dark(context)
+        fun c(light: Int, darkColor: Int) = "#%06X".format(context.getColor(if (dark) darkColor else light) and 0xFFFFFF)
+        return ":root { --surface: ${c(R.color.surface, R.color.surface_dark)}; --card: ${c(R.color.card, R.color.card_dark)}; " +
+            "--clock: ${c(R.color.clock, R.color.clock_dark)}; --text: ${c(R.color.text, R.color.text_dark)}; " +
+            "--muted: ${c(R.color.muted, R.color.muted_dark)}; --title: ${c(R.color.title, R.color.title_dark)}; }"
+    }
+
     private fun changed() {
         revision++
         main.post { onChange?.invoke() }

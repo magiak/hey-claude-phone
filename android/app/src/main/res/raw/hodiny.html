@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+/*barvy*/
+html, body { margin: 0; height: 100%; background: var(--surface); color: var(--text); font-family: sans-serif; }
+body { box-sizing: border-box; padding: 40px; display: flex; align-items: center; }
+#hodiny { font: 100px/1 serif; letter-spacing: -0.02em; color: var(--clock); }
+#datum { margin-top: 8px; font-size: 20px; color: var(--muted); }
+#karta { flex: 1; margin-left: 40px; background: var(--card); border-radius: 20px; padding: 22px 24px; }
+#nadpis { font-size: 13px; font-weight: 500; letter-spacing: 0.03em; color: var(--title); }
+#otazka { margin-top: 8px; font-size: 15px; color: var(--muted); -webkit-line-clamp: 2; }
+#odpoved { margin-top: 10px; font: 19px/1.15 serif; -webkit-line-clamp: 7; }
+.zkratit { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; }
+</style>
+</head>
+<body>
+<div>
+  <div id="hodiny"></div>
+  <div id="datum"></div>
+</div>
+<div id="karta">
+  <div id="nadpis"></div>
+  <div id="otazka" class="zkratit"></div>
+  <div id="odpoved" class="zkratit"></div>
+</div>
+<script>
+function obnov() {
+  var d = new Date();
+  document.getElementById('hodiny').textContent = d.toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' });
+  var den = d.toLocaleDateString('cs-CZ', { weekday: 'long', day: 'numeric', month: 'long' });
+  document.getElementById('datum').textContent = den.charAt(0).toUpperCase() + den.slice(1);
+
+  var a = window.asistent && asistent.lastAnswer();
+  var nadpis = document.getElementById('nadpis'), otazka = document.getElementById('otazka'), odpoved = document.getElementById('odpoved');
+  if (!a) {
+    nadpis.textContent = 'Zeptej se';
+    otazka.style.display = 'none';
+    odpoved.textContent = 'Řekni „{wake}“ a ptej se nahlas. Poslední odpověď tu zůstane napsaná.';
+    return;
+  }
+  var min = Math.floor((Date.now() - a.at) / 60000);
+  nadpis.textContent = 'Claude naposledy · ' + (min < 1 ? 'teď' : min < 60 ? 'před ' + min + ' min' : 'před ' + Math.floor(min / 60) + ' h');
+  otazka.style.display = a.question ? '' : 'none';
+  otazka.textContent = a.question;
+  odpoved.textContent = a.answer;
+}
+obnov();
+setInterval(obnov, 15000);
+</script>
+</body>
+</html>

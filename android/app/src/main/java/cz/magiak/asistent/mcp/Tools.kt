@@ -69,7 +69,9 @@ class Tools(private val context: Context) {
                 "Nastaví domovskou obrazovku telefonu, přes který s uživatelem mluvíš. Displej leží na šířku, " +
                     "viditelná plocha je asi ${screenSize()}, čte se z pár metrů: velké písmo a málo věcí. " +
                     "Pošli celý krátký HTML dokument (do 5 000 znaků). Obrazovka zůstane, dokud ji uživatel nechce jinou. " +
-                    "Když chce jen něco přidat nebo změnit, nejdřív zavolej get_home_screen a uprav tu současnou. " +
+                    "Vždy nejdřív zavolej get_home_screen a uprav, co tam je, i když jsou tam původní hodiny: " +
+                    "uživatel chce svou obrazovku zachovat a jen ji měnit. Bez předlohy (replace: true) pošli stránku, " +
+                    "jen když výslovně chce úplně jinou obrazovku. " +
                     "Stránka se jen zobrazuje a klepnutí nedostane. Pravý horní roh (70 × 70 px) zakrývá ikona nastavení. " +
                     "Živá data: await asistent.json(url) a await asistent.text(url) stáhnou veřejnou adresu přes telefon, " +
                     "bez omezení CORS. Bez klíče fungují třeba api.coingecko.com (kryptoměny) a " +
@@ -77,16 +79,19 @@ class Tools(private val context: Context) {
                     "a při chybě nech poslední hodnotu s časem, kdy platila. Data z tvých jiných nástrojů telefon sám nestáhne: " +
                     "vlož je jako hodnoty a napiš, k jaké chvíli platí. asistent.lastAnswer() vrátí poslední otázku a odpověď " +
                     "z hovoru jako {question, answer, at} nebo null. Hodiny a datum počítej v JavaScriptu, česky. " +
-                    "Vzhled zbytku telefonu: podklad #F0EEE6, akcent #D97757, text #141413 a #5E5D59, velká čísla patkovým písmem. " +
+                    "Barvy současného vzhledu telefonu: ${CustomScreen.palette(context)}, velká čísla patkovým písmem. " +
                     "Obrazovka se ukáže, až hovor skončí. Uživateli řekni jednou větou, co na ní bude, kód nečti nahlas.",
-                JSONObject().put("html", JSONObject().put("type", "string")),
+                JSONObject()
+                    .put("html", JSONObject().put("type", "string"))
+                    .put("replace", JSONObject().put("type", "boolean")),
                 required = listOf("html"),
             )
         )
         .put(
             tool(
                 "get_home_screen", "Přečíst obrazovku",
-                "Vrátí HTML současné domovské obrazovky telefonu, abys ji mohl upravit nástrojem set_home_screen.",
+                "Vrátí HTML současné domovské obrazovky telefonu, abys ji upravil nástrojem set_home_screen. " +
+                    "Když jsou na ní původní hodiny, vrátí jejich kopii jako stránku. Volej před každou změnou obrazovky.",
                 JSONObject(),
             )
         )
@@ -119,10 +124,15 @@ class Tools(private val context: Context) {
         "prepare_print" -> preparePrint(args)
         "print" -> print(args)
         "scan" -> scan()
-        "set_home_screen" -> setScreen(args.getString("html"))
-        "get_home_screen" -> textResult(
-            CustomScreen.load(context) ?: "Na obrazovce jsou původní hodiny s poslední odpovědí, vlastní stránka tam není."
-        )
+        "set_home_screen" -> setScreen(args.getString("html"), args.optBoolean("replace"))
+        "get_home_screen" -> {
+            readRevision = CustomScreen.revision
+            textResult(
+                CustomScreen.load(context)
+                    ?: ("Na displeji jsou původní hodiny s poslední odpovědí. Tady je jejich kopie jako stránka, " +
+                        "přidej nebo změň v ní, co uživatel chce:\n\n" + CustomScreen.original(context))
+            )
+        }
         "reset_home_screen" -> {
             CustomScreen.reset(context)
             textResult("Hotovo, po konci hovoru budou na obrazovce zase původní hodiny.")
@@ -130,10 +140,21 @@ class Tools(private val context: Context) {
         else -> textResult("Neznámý nástroj $name.", error = true)
     }
 
-    private fun setScreen(html: String): JSONObject {
+    // The description alone did not hold: asked for one more thing, Claude rewrote his page from
+    // scratch and the clock was gone (2026-11-09). So a set must build on what get returned.
+    @Volatile private var readRevision = -1
+
+    private fun setScreen(html: String, replace: Boolean): JSONObject {
+        if (!replace && readRevision != CustomScreen.revision) return textResult(
+            "Neuloženo. Nejdřív zavolej get_home_screen a uprav současnou obrazovku, uživatel ji chce zachovat. " +
+                "replace: true pošli, jen když výslovně chce úplně jinou.",
+            error = true,
+        )
         if (!html.contains("<")) return textResult("Pošli celý HTML dokument.", error = true)
         if (html.length > MAX_SCREEN_CHARS) return textResult("Stránka je moc dlouhá, zkrať ji pod $MAX_SCREEN_CHARS znaků.", error = true)
         CustomScreen.save(context, html)
+        // What Claude just sent is the page now, so more tweaks in the same call need no new read.
+        readRevision = CustomScreen.revision
         return textResult("Uloženo. Obrazovka se ukáže, až hovor skončí.")
     }
 
