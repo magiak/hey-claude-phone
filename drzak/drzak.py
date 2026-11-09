@@ -57,16 +57,13 @@ CABLE_X, CABLE_W, CABLE_Z0 = 45.0, 7.0, 3.0   # kabel vede spodní lištou a vyc
 # Hlava šroubu ve zdi vjíždí až k žebru u konce telefonu, výš by o něj zavadila.
 KEY_Y, KEY_HEAD, KEY_SLOT, KEY_RISE, KEY_PAD = 10.0, 8.5, 4.2, 9.0, 1.2
 
-# ---------- PODSTAVEC: pás vpředu přes celou šířku, nožky pod konci těla (plný kvádr měl 75 g, řekl 2026-11-08 „hrozně moc") ----------
-# Pás je zepředu všude stejně vysoký: konce nožek trčící nad nízkou lištou vypadaly jako packy (řekl 2026-11-09).
+# ---------- PODSTAVEC: dvě nožky a lišta vpředu (plný kvádr měl 75 g, řekl 2026-11-08 „hrozně moc") ----------
 TILT = 15.0            # sklon dozadu
-CH_BASE, CH_TOP = 0.8, 0.8
+BASE_L, CH_BASE = 150.0, 0.8
+FOOT_W = 10.0
 FOOT_D = 55.0          # dozadu tak daleko, aby ho klepnutí nahoře na displej nepřevrátilo
-FOOT_IN = 15.0         # pod tělem 5 mm rovného dna před zaobleným rohem
-END_T, END_CLR = 2.0, 0.6   # vůli drážky ověřil první stojánek, délku těla ne: u konců víc
-BAND_T, TAIL_H = 2.0, 3.0
 BODY_Y0, BODY_Z0 = 2.5, 14.0   # přední spodní hrana těla; pod tělem se kabel stočí dozadu mezi nožkami
-SLOT_DEPTH, SLOT_CLR, LIP = 8.0, 0.3, 2.5
+SLOT_DEPTH, SLOT_CLR, LIP, BAR_T = 8.0, 0.3, 2.5, 2.5
 
 # ---------- ODVOZENÉ ----------
 WW = DISP_L - NOTCH_D - 2 * WIN_MARGIN
@@ -86,7 +83,6 @@ BOSS_TOP = Z_COV - RING_H
 HOLE_BOTTOM = D - HEAD_SINK - SCREW_LEN - 0.5
 assert HOLE_BOTTOM >= FRONT_T + 0.3, "šroub by prorazil čelo"
 assert BOSS_Y - BOSS_D / 2 >= CY1 + 0.9, "sloupek zasahuje do telefonu"
-BASE_HL = HL + END_CLR + END_T
 GRILLE_X = (CX1 + HL_IN) / 2
 KEY_X = (CX1 + RIB_T + HL_IN) / 2
 
@@ -201,27 +197,16 @@ def shell_to_base():
                      [0, np.cos(t), -np.sin(t), BODY_Z0 + HH * np.cos(t)]], float)
 
 
-def along_x(cs, x0, x1):
-    """Profil v rovině (y, z) vytažený podél x."""
-    return Manifold.extrude(cs, x1 - x0).transform(np.array([[0, 0, 1, x0], [1, 0, 0, 0], [0, 1, 0, 0]], float))
-
-
 def build_base():
     T = shell_to_base()
     _, yf, zf = T @ [0, -HH + SLOT_DEPTH, 0, 1]
     _, yb, zb = T @ [0, -HH + SLOT_DEPTH, D, 1]
-    y_lip = yb + SLOT_CLR + LIP
-    side = CrossSection([[(0, 0), (FOOT_D, 0), (FOOT_D, TAIL_H), (y_lip + zb - TAIL_H, TAIL_H), (y_lip, zb), (0, zf)]])
-    m = along_x(side, -BASE_HL, BASE_HL)
-    xi = HL - FOOT_IN
-    # mezi nožkami zůstane jen pás před tělem: kabel se pod tělem stáčí dozadu
-    behind = box(-xi, xi, -HH - 50, HH + 100, -SLOT_CLR, 100).transform(T)
-    m -= box(-xi, xi, BAND_T, FOOT_D + 1, -1, 100) ^ behind
-    m ^= chamfered(rrect(2 * BASE_HL, FOOT_D, 4, 0, FOOT_D / 2), 0, zf + 1, CH_BASE, 0)
-    m -= along_x(CrossSection([[(-1, zf - CH_TOP - 1), (CH_TOP + 2, zf + 2), (-1, zf + 2)]]), -BASE_HL - 1, BASE_HL + 1)
-    slot = rrect(2 * (HL + END_CLR), 2 * (HH + SLOT_CLR), R_OUT + SLOT_CLR)
-    slot += CrossSection.square([2 * (HL + END_CLR), 2 * HH]).translate([-(HL + END_CLR), 0])
-    m -= ext(slot, -SLOT_CLR, D + SLOT_CLR).transform(T)
+    side = CrossSection([[(0, 0), (FOOT_D, 0), (FOOT_D, 3), (yb + SLOT_CLR + LIP, zb), (0, zf)]])
+    m = box(-BASE_L / 2, BASE_L / 2, 0, BAR_T, 0, BODY_Z0 - 0.5)    # zakryje kabel pod tělem zepředu
+    for x0 in (-BASE_L / 2, BASE_L / 2 - FOOT_W):
+        m += Manifold.extrude(side, FOOT_W).transform(np.array([[0, 0, 1, x0], [1, 0, 0, 0], [0, 1, 0, 0]], float))
+    m ^= chamfered(rrect(BASE_L, FOOT_D, 3, 0, FOOT_D / 2), 0, zf + 1, CH_BASE, 0)
+    m -= box(-BASE_L, BASE_L, -HH - SLOT_CLR, -HH + 80, -SLOT_CLR, D + SLOT_CLR).transform(T)
     return one(m, "podstavec")
 
 
@@ -232,15 +217,14 @@ def tip_margins():
 
 
 def build_tests():
-    """Jeden šroubek (sloupek a kus víčka kolem něj), destička do mezery za konektorem v prvním tisku
-    a konec podstavce, který se nasadí na roh těla."""
+    """Jeden šroubek (sloupek a kus víčka kolem něj) a destička do mezery za konektorem v prvním tisku."""
     x, y = BOSSES[2]
     crop = box(x - 6, x + 6, -HH - 1, y + 5, -1, D + 1)
     a = one(build_shell() ^ crop, "test sloupku")
     b = one(to_cover_print(build_cover_body() ^ crop), "test víčka")
     gauge = box(0, GAUGE_T, 0, 15, 0, 8)    # tloušťka leží v rovině podložky jako stěna těla
-    corner = one(build_base() ^ box(HL - 4, BASE_HL + 1, -1, 24, -1, 40), "test rohu podstavce")
-    return a, b, gauge, corner
+    slot = one(build_base() ^ box(BASE_L / 2 - 4, BASE_L / 2 + 1, -1, 22, -1, 40), "test drážky")
+    return a, b, gauge, slot
 
 
 def printed(m):
@@ -282,8 +266,8 @@ def main():
     shell, cover, base = build_shell(), build_cover(), build_base()
     assert (shell ^ build_cover_body()).volume() < 1e-3, "víčko narazí do těla"
     assert (shell.transform(shell_to_base()) ^ base).volume() < 1e-3, "tělo narazí do podstavce"
-    a, b, gauge, corner = build_tests()
-    parts = {"test_sroub_telo": printed(a), "test_sroub_vicko": printed(b), "test_mezera": gauge, "test_roh_podstavce": corner,
+    a, b, gauge, slot = build_tests()
+    parts = {"test_sroub_telo": printed(a), "test_sroub_vicko": printed(b), "test_mezera": gauge, "test_drazka": slot,
              "telo": printed(shell), "vicko": printed(cover), "podstavec": base}
     stl = OUT / "stl"
     stl.mkdir(exist_ok=True)
@@ -300,22 +284,19 @@ def main():
 
     desc = ("Drzak domaciho asistentu (stary telefon ASUS ZenFone 5Z na sirku). "
             f"Podlozka 1: test - sloupek a kus vicka sesroubovat sroubkem M2.5x10 se zapustnou hlavou; "
-            f"destickou {GAUGE_T:.1f} mm zkusit mezeru za konektorem v prvnim tisku, musi vlezt volne. "
+            f"destickou {GAUGE_T:.1f} mm zkusit mezeru za konektorem v prvnim tisku, musi vlezt volne; kus nozky nasunout na spodni hranu prvniho tela, musi jit volne a nesmi se viklat. "
             "Podlozka 2: telo (celem dolu) a vicko (zady dolu), 4 sroubky M2.5x10 jako zadni kryt Live Display. "
-            "Podlozka 3: test - konec podstavce nasadit zespodu na spodni roh tela, musi jit volne a nesmi se viklat. "
-            "Podlozka 4: podstavec na stul, pas vpredu pres celou sirku tela a nozky pod konci, kabel vede pod telem dozadu mezi nozkami. "
+            "Podlozka 3: podstavec na stul, dve nozky spojene listou vpredu, kabel vede dozadu mezi nimi. "
             "Na zed: vicko ma dve klicove dirky. Potreba uhlovy kabel USB-C, kabel vychazi dole vpravo.")
     if write_3mf is None:
         print("bambu3mf chybí: 3MF zůstává z minula, nové jsou jen STL ve složce stl/")
     else:
         write_3mf(OUT / "asistent_drzak.3mf", [
             [("Test screw post", meshes["test_sroub_telo"], 1), ("Test screw cover", meshes["test_sroub_vicko"], 1),
-             ("Gap gauge", meshes["test_mezera"], 1)],
+             ("Gap gauge", meshes["test_mezera"], 1), ("Test stand slot", meshes["test_drazka"], 1)],
             [("Screen body", meshes["telo"], 1), ("Back cover", meshes["vicko"], 1)],
-            [("Stand corner test", meshes["test_roh_podstavce"], 2)],
             [("Desk stand", meshes["podstavec"], 2)],
-        ], plate_names=["1 Tests - white PLA", "2 Screen body and cover - white PLA", "3 Stand corner test - black PLA",
-                        "4 Desk stand - black PLA"],
+        ], plate_names=["1 Tests - white PLA", "2 Screen body and cover - white PLA", "3 Desk stand - black PLA"],
             info={"Title": "Home assistant phone holder", "Designer": "Lukas Kmoch", "Description": desc},
             filaments=[("Generic PLA", "#F2F2F2"), ("Generic PLA", "#1E1E1E")])
     preview(shell, cover, base, OUT / "nahled.png")
