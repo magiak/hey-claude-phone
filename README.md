@@ -19,7 +19,7 @@ Aplikace Claude neumí volat lokální MCP servery, jen konektory s veřejnou ad
 
 ## Vlastní obrazovka hlasem
 
-S konektorem si domovskou obrazovku navrhneš v hovoru: „dej mi tam velké hodiny a cenu bitcoinu“. Claude napíše stránku, telefon si ji uloží a ukazuje místo hodin, dokud neřekneš jinou nebo „vrať hodiny“. Ukáže se po konci hovoru. Veřejná data (kurzy, ceny akcií) stahuje telefon za stránku každou minutu, takže zůstanou živá. Data z ostatních konektorů na claude.ai telefon nedostane a zůstanou jen jako stav z chvíle hovoru. Na telefonu zatím neověřené.
+S konektorem si domovskou obrazovku navrhneš v hovoru: „dej mi tam velké hodiny a cenu bitcoinu“. Claude napíše stránku, telefon si ji uloží a ukazuje místo hodin, dokud neřekneš jinou nebo „vrať hodiny“. Ukáže se po konci hovoru. Veřejná data (kurzy, ceny akcií) stahuje telefon za stránku každou minutu, takže zůstanou živá. Data z ostatních konektorů na claude.ai telefon nedostane a zůstanou jen jako stav z chvíle hovoru. Ověřené na telefonu přes adb a přes konektor, z hlasového hovoru zatím ne.
 
 Stránku jde vyzkoušet i bez Clauda:
 
@@ -46,7 +46,7 @@ cd android
 ./gradlew installDebug
 ```
 
-Po instalaci aplikaci spouštěj jen `adb shell am start -n cz.magiak.asistent/.MainActivity`. `am force-stop` vypne službu přístupnosti.
+Po instalaci aplikaci spouštěj jen `adb shell am start -n cz.magiak.asistent/.MainActivity`. `am force-stop` vypne službu přístupnosti. Když ji `adb shell dumpsys accessibility` neukazuje mezi „Bound services“, instalace ji ukončila uprostřed spouštění: nainstaluj znovu.
 
 ## Nastavení telefonu
 
