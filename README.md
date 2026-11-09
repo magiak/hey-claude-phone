@@ -10,7 +10,7 @@ Neoficiální projekt, s Anthropic nesouvisí. Spoléhá na tlačítko „Voice 
 
 1. **Budicí slovo offline.** [Vosk](https://alphacephei.com/vosk/) s malým anglickým modelem smí rozpoznat jen „hey“ a „claude“, zvuk z telefonu nikam neodchází. Okraj displeje svítí oranžově, když někdo mluví, zeleně na „Hey Claude“ a červeně, když slyšel jen „Claude“ nebo si nebyl jistý.
 2. **Hlasový režim.** Asistent pustí mikrofon, otevře Clauda v nové konverzaci (odkaz `https://claude.ai/new`) a služba přístupnosti klepne na „Voice mode“. Tlačítko hledá podle názvu, takže funguje na výšku i na šířku. Klepnutí na hodiny dělá totéž.
-3. **Návrat na hodiny.** Když se hovor 15 sekund nehýbe (nejdéle po 15 minutách), služba ho ukončí, přečte z chatu poslední otázku a odpověď a nechá je na displeji 12 hodin. Uložené jsou jen v telefonu.
+3. **Návrat na hodiny.** Když Claude 15 sekund nemluví a v chatu nepřibude text (nejdéle po 15 minutách), služba ho ukončí, přečte z chatu poslední otázku a odpověď a nechá je na displeji 12 hodin. Uložené jsou jen v telefonu.
 4. **Nastavení.** Ozubené kolečko vpravo nahoře: nová nebo poslední konverzace, ticho 15 s, 30 s nebo 1 min a světlý nebo tmavý vzhled (světlý k bílému držáku, tmavý k černému).
 
 ## Hlasitost, tisk a sken z hovoru

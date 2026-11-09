@@ -5,6 +5,7 @@ import android.accessibilityservice.GestureDescription
 import android.content.Intent
 import android.graphics.Path
 import android.graphics.Rect
+import android.media.AudioManager
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -24,6 +25,8 @@ class ClaudeVoiceService : AccessibilityService() {
     private var callStartedAt = 0L
     private var lastChangeAt = 0L
     private var lastScreen = ""
+    private var wasSpeaking = false
+    private val audio by lazy { getSystemService(AudioManager::class.java) }
     private var dumpedLabels = false
     private var clickScheduled = false
 
@@ -96,6 +99,7 @@ class ClaudeVoiceService : AccessibilityService() {
         callStartedAt = System.currentTimeMillis()
         lastChangeAt = callStartedAt
         lastScreen = ""
+        wasSpeaking = false
         handler.postDelayed(watchCall, 3_000)
     }
 
@@ -139,6 +143,13 @@ class ClaudeVoiceService : AccessibilityService() {
             lastScreen = screen
             lastChangeAt = now
         }
+        // A long spoken answer adds no text until it ends; Claude's voice plays on the media stream.
+        val speaking = audio.isMusicActive
+        if (speaking != wasSpeaking) {
+            wasSpeaking = speaking
+            Log.i(Config.TAG, if (speaking) "Claude mluví." else "Claude domluvil.")
+        }
+        if (speaking) lastChangeAt = now
         val idleMs = UserSettings.callIdleSeconds(this) * 1_000L
         if (now - lastChangeAt > idleMs || now - callStartedAt > Config.MAX_CALL_MS) {
             Log.i(Config.TAG, "Hovor ztichl, ukončuju ho.")
