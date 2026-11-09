@@ -8,6 +8,7 @@
     android:background="@color/background">
 
     <LinearLayout
+        android:id="@+id/panel"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_marginStart="@dimen/frame_start"
@@ -121,6 +122,32 @@
                 android:textSize="19sp" />
         </LinearLayout>
     </LinearLayout>
+
+    <!-- Claude's page (CustomScreen) fills what the holder leaves visible; the gear stays above it. -->
+    <FrameLayout
+        android:id="@+id/screen_box"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginStart="@dimen/hidden_start"
+        android:layout_marginTop="@dimen/hidden_edge"
+        android:layout_marginEnd="@dimen/hidden_edge"
+        android:layout_marginBottom="@dimen/hidden_edge"
+        android:visibility="gone" />
+
+    <!-- The page hides the status line, but not what needs his hand (service off, relay down). -->
+    <TextView
+        android:id="@+id/screen_problem"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|start"
+        android:layout_marginStart="@dimen/frame_start"
+        android:layout_marginEnd="@dimen/frame_edge"
+        android:layout_marginBottom="@dimen/frame_edge"
+        android:background="@drawable/card"
+        android:padding="12dp"
+        android:textColor="#5E5D59"
+        android:textSize="14sp"
+        android:visibility="gone" />
 
     <ImageView
         android:id="@+id/settings"

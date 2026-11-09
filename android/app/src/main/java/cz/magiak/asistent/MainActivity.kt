@@ -17,8 +17,10 @@ import android.provider.Settings
 import android.util.TypedValue
 import android.view.View
 import android.view.WindowManager
+import android.widget.FrameLayout
 import android.widget.TextView
 import cz.magiak.asistent.mcp.Konektor
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -36,6 +38,11 @@ class MainActivity : Activity() {
     private lateinit var question: TextView
     private lateinit var answer: TextView
     private lateinit var date: TextView
+    private lateinit var panel: View
+    private lateinit var screenBox: FrameLayout
+    private lateinit var screenProblem: TextView
+    private var screen: ScreenView? = null
+    private var shownRevision = -1
     private var demoAnswer: LastAnswer? = null
     private var trial = false
     private var armed = false
@@ -78,6 +85,10 @@ class MainActivity : Activity() {
         question = findViewById(R.id.question)
         answer = findViewById(R.id.answer)
         date = findViewById(R.id.date)
+        panel = findViewById(R.id.panel)
+        screenBox = findViewById(R.id.screen_box)
+        screenProblem = findViewById(R.id.screen_problem)
+        CustomScreen.onChange = ::showScreen
         answerSize = answer.textSize
         window.decorView.setBackgroundColor(getColor(R.color.background))
         // Otherwise the strip beside the camera notch stays black next to the light background.
@@ -135,8 +146,36 @@ class MainActivity : Activity() {
         hideSystemBars()
         Session.launchRequestedAt = 0L
         glow.reset()
+        showScreen()
+        screen?.onResume()
         everyMinute.run()
         refresh()
+    }
+
+    // A page that crashed stays off until Claude sends the next one, or it would crash on every return.
+    private fun showScreen() {
+        if (CustomScreen.revision == shownRevision) return
+        shownRevision = CustomScreen.revision
+        val html = CustomScreen.load(this) ?: return closeScreen()
+        val view = screen ?: ScreenView(this, ::closeScreen).also {
+            screen = it
+            screenBox.addView(it)
+        }
+        view.show(html)
+        screenBox.visibility = View.VISIBLE
+        panel.visibility = View.INVISIBLE
+        updateStatus()
+    }
+
+    private fun closeScreen() {
+        screen?.let {
+            screenBox.removeView(it)
+            it.destroy()
+        }
+        screen = null
+        screenBox.visibility = View.GONE
+        panel.visibility = View.VISIBLE
+        updateStatus()
     }
 
     private fun refresh() {
@@ -168,6 +207,8 @@ class MainActivity : Activity() {
         val konektor = if (BuildConfig.KONEKTOR_URL.isNotEmpty() && !Konektor.online)
             "Konektor je odpojený: Claude teď hlasitost, tisk ani sken neovládne." else null
         status.text = listOfNotNull(Session.problem, service, konektor, note, recordNote, listenStatus).joinToString("\n")
+        screenProblem.text = listOfNotNull(Session.problem, service, konektor).joinToString("\n")
+        screenProblem.visibility = if (screen != null && screenProblem.text.isNotEmpty()) View.VISIBLE else View.GONE
     }
 
     override fun onPause() {
@@ -180,10 +221,13 @@ class MainActivity : Activity() {
         glow.removeCallbacks(launchAfterFlash)
         glow.removeCallbacks(listenAgain)
         glow.removeCallbacks(everyMinute)
+        screen?.onPause()
         super.onPause()
     }
 
     override fun onDestroy() {
+        CustomScreen.onChange = null
+        screen?.destroy()
         screenLock?.takeIf { it.isHeld }?.release()
         beeper?.release()
         super.onDestroy()
@@ -262,6 +306,8 @@ class MainActivity : Activity() {
     // each time; the Home button ends it.
     // nahraj: a guided recording of his voice for tuning on the PC; starts on his tap.
     // prehraj: the newest recording through the current Config, no voice needed.
+    // obrazovka: a home page tried without Claude, pushed first to
+    // /sdcard/Android/data/cz.magiak.asistent/files/obrazovka.html; hodiny puts the clock back.
     // adb shell am start -n cz.magiak.asistent/.MainActivity --es ukazka zkouska
     private fun showDemo(intent: Intent) {
         if (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE == 0) return
@@ -272,6 +318,15 @@ class MainActivity : Activity() {
             "vedle" -> glow::miss
             "nahraj" -> {
                 arm()
+                return
+            }
+            "obrazovka" -> {
+                File(getExternalFilesDir(null), "obrazovka.html").takeIf { it.exists() }
+                    ?.let { CustomScreen.save(this, it.readText()) }
+                return
+            }
+            "hodiny" -> {
+                CustomScreen.reset(this)
                 return
             }
             "prehraj" -> {

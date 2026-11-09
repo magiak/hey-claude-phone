@@ -17,6 +17,19 @@ Neoficiální projekt, s Anthropic nesouvisí. Spoléhá na tlačítko „Voice 
 
 Aplikace Claude neumí volat lokální MCP servery, jen konektory s veřejnou adresou. Asistent proto může být MCP serverem sám: drží spojení s malým průchodem na Cloudflare a Claude přes něj v hovoru mění hlasitost telefonu. Tisk a sken na tiskárně v Wi-Fi jsou napsané, na skutečné tiskárně zatím neověřené. Přidat jde jakýkoliv další nástroj. Je to volitelné, nasazení a nastavení konektoru popisuje [`konektor/README.md`](konektor/README.md).
 
+## Vlastní obrazovka hlasem
+
+S konektorem si domovskou obrazovku navrhneš v hovoru: „dej mi tam velké hodiny a cenu bitcoinu“. Claude napíše stránku, telefon si ji uloží a ukazuje místo hodin, dokud neřekneš jinou nebo „vrať hodiny“. Ukáže se po konci hovoru. Veřejná data (kurzy, ceny akcií) stahuje telefon za stránku každou minutu, takže zůstanou živá. Data z ostatních konektorů na claude.ai telefon nedostane a zůstanou jen jako stav z chvíle hovoru. Na telefonu zatím neověřené.
+
+Stránku jde vyzkoušet i bez Clauda:
+
+```bash
+adb push stranka.html /sdcard/Android/data/cz.magiak.asistent/files/obrazovka.html
+adb shell am start -n cz.magiak.asistent/.MainActivity --es ukazka obrazovka
+```
+
+Zpátky na hodiny vede `--es ukazka hodiny`. Ve stránce je `await asistent.json(url)` a `await asistent.text(url)` (stahuje telefon, bez omezení CORS) a `asistent.lastAnswer()`.
+
 ## Co je potřeba
 
 - Telefon s Androidem 8 nebo novějším, trvale v nabíječce.

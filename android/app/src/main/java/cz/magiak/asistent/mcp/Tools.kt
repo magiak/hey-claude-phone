@@ -1,17 +1,22 @@
 package cz.magiak.asistent.mcp
 
 import android.content.Context
+import android.hardware.display.DisplayManager
 import android.media.AudioManager
 import android.util.Base64
+import android.util.DisplayMetrics
 import android.util.Log
+import android.view.Display
 import cz.magiak.asistent.Config
+import cz.magiak.asistent.CustomScreen
+import cz.magiak.asistent.R
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
 import kotlin.math.roundToInt
 
 /** MCP tools Claude can call from a voice call. A new tool goes into list() and call(); descriptions are Claude's instructions. */
-class Tools(context: Context) {
+class Tools(private val context: Context) {
 
     private val audio = context.getSystemService(AudioManager::class.java)
     private val printer = Printer()
@@ -58,6 +63,40 @@ class Tools(context: Context) {
                 JSONObject(),
             )
         )
+        .put(
+            tool(
+                "set_home_screen", "Nastavit obrazovku",
+                "Nastaví domovskou obrazovku telefonu, přes který s uživatelem mluvíš. Displej leží na šířku, " +
+                    "viditelná plocha je asi ${screenSize()}, čte se z pár metrů: velké písmo a málo věcí. " +
+                    "Pošli celý krátký HTML dokument (do 5 000 znaků). Obrazovka zůstane, dokud ji uživatel nechce jinou. " +
+                    "Když chce jen něco přidat nebo změnit, nejdřív zavolej get_home_screen a uprav tu současnou. " +
+                    "Stránka se jen zobrazuje a klepnutí nedostane. Pravý horní roh (70 × 70 px) zakrývá ikona nastavení. " +
+                    "Živá data: await asistent.json(url) a await asistent.text(url) stáhnou veřejnou adresu přes telefon, " +
+                    "bez omezení CORS. Bez klíče fungují třeba api.coingecko.com (kryptoměny) a " +
+                    "query1.finance.yahoo.com/v8/finance/chart/TICKER (akcie). Obnovuj nejvýš jednou za minutu " +
+                    "a při chybě nech poslední hodnotu s časem, kdy platila. Data z tvých jiných nástrojů telefon sám nestáhne: " +
+                    "vlož je jako hodnoty a napiš, k jaké chvíli platí. asistent.lastAnswer() vrátí poslední otázku a odpověď " +
+                    "z hovoru jako {question, answer, at} nebo null. Hodiny a datum počítej v JavaScriptu, česky. " +
+                    "Vzhled zbytku telefonu: podklad #F0EEE6, akcent #D97757, text #141413 a #5E5D59, velká čísla patkovým písmem. " +
+                    "Obrazovka se ukáže, až hovor skončí. Uživateli řekni jednou větou, co na ní bude, kód nečti nahlas.",
+                JSONObject().put("html", JSONObject().put("type", "string")),
+                required = listOf("html"),
+            )
+        )
+        .put(
+            tool(
+                "get_home_screen", "Přečíst obrazovku",
+                "Vrátí HTML současné domovské obrazovky telefonu, abys ji mohl upravit nástrojem set_home_screen.",
+                JSONObject(),
+            )
+        )
+        .put(
+            tool(
+                "reset_home_screen", "Vrátit hodiny",
+                "Vrátí na domovskou obrazovku telefonu původní hodiny s poslední odpovědí místo vlastní stránky.",
+                JSONObject(),
+            )
+        )
 
     /** One JSON-RPC tools/call in, its JSON-RPC reply out. Failures go back to Claude as text. */
     fun handle(text: String): String {
@@ -80,7 +119,34 @@ class Tools(context: Context) {
         "prepare_print" -> preparePrint(args)
         "print" -> print(args)
         "scan" -> scan()
+        "set_home_screen" -> setScreen(args.getString("html"))
+        "get_home_screen" -> textResult(
+            CustomScreen.load(context) ?: "Na obrazovce jsou původní hodiny s poslední odpovědí, vlastní stránka tam není."
+        )
+        "reset_home_screen" -> {
+            CustomScreen.reset(context)
+            textResult("Hotovo, po konci hovoru budou na obrazovce zase původní hodiny.")
+        }
         else -> textResult("Neznámý nástroj $name.", error = true)
+    }
+
+    private fun setScreen(html: String): JSONObject {
+        if (!html.contains("<")) return textResult("Pošli celý HTML dokument.", error = true)
+        if (html.length > MAX_SCREEN_CHARS) return textResult("Stránka je moc dlouhá, zkrať ji pod $MAX_SCREEN_CHARS znaků.", error = true)
+        CustomScreen.save(context, html)
+        return textResult("Uloženo. Obrazovka se ukáže, až hovor skončí.")
+    }
+
+    // The page fills the holder's window, which hides the notch strip and a thin edge (dimens.xml).
+    private fun screenSize(): String {
+        val metrics = DisplayMetrics()
+        @Suppress("DEPRECATION")
+        context.getSystemService(DisplayManager::class.java).getDisplay(Display.DEFAULT_DISPLAY).getRealMetrics(metrics)
+        val res = context.resources
+        val edge = res.getDimension(R.dimen.hidden_edge)
+        val w = (maxOf(metrics.widthPixels, metrics.heightPixels) - res.getDimension(R.dimen.hidden_start) - edge) / metrics.density
+        val h = (minOf(metrics.widthPixels, metrics.heightPixels) - 2 * edge) / metrics.density
+        return "${w.roundToInt()} × ${h.roundToInt()} px"
     }
 
     // Claude's voice mode plays as USAGE_MEDIA in MODE_NORMAL (dumpsys audio during a call, 2026-11-09).
@@ -143,5 +209,7 @@ class Tools(context: Context) {
 
     private companion object {
         const val VOLUME_STEP = 0.1
+        // The description asks for 5 000 (voice mode is silent while it writes); this only stops a runaway page.
+        const val MAX_SCREEN_CHARS = 60_000
     }
 }

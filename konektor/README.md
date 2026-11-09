@@ -2,7 +2,7 @@
 
 Aplikace Claude **neumí volat lokální MCP servery**. Vlastní konektory volá z cloudu Anthropicu, takže potřebují veřejnou adresu na internetu. Server v telefonu ani v domácí síti tak napřímo nejde.
 
-Tady je MCP server přímo v telefonu a veřejnou adresu mu dělá malý průchod (relay) na Cloudflare. Telefon k němu drží odchozí WebSocket, takže doma není potřeba otevírat porty ani nechávat běžet počítač. V hovoru pak Claude může měnit hlasitost telefonu, tisknout a skenovat na tiskárně v Wi-Fi. Přidat jde jakýkoliv další nástroj.
+Tady je MCP server přímo v telefonu a veřejnou adresu mu dělá malý průchod (relay) na Cloudflare. Telefon k němu drží odchozí WebSocket, takže doma není potřeba otevírat porty ani nechávat běžet počítač. V hovoru pak Claude může měnit hlasitost telefonu, tisknout a skenovat na tiskárně v Wi-Fi a měnit domovskou obrazovku. Přidat jde jakýkoliv další nástroj.
 
 ```
 Claude (cloud) --HTTPS /mcp--> průchod (Cloudflare Worker) <--WebSocket /phone/<klíč>-- telefon
