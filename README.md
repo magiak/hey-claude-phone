@@ -32,7 +32,10 @@ Zpátky na hodiny vede `--es ukazka hodiny`. Ve stránce je `await asistent.json
 
 ## Co je potřeba
 
-- Telefon s Androidem 8 nebo novějším, trvale v nabíječce.
+- Telefon s Androidem 8 nebo novějším a Obchodem Play, trvale v nabíječce. Ověřeno na ASUS ZenFone 5Z s Androidem 10.
+- Nenafouklá baterie. Když to telefon umí, zapni omezení nabíjení (Pixel 6a a novější 80 %, Samsung 85 %).
+- Nejméně starostí dá Pixel. ASUS, Xiaomi, Huawei a další chtějí Asistenta povolit v automatickém spouštění, jinak služba přístupnosti po restartu neběží.
+- Držák je jen pro ZenFone 5Z. Pro jiný telefon uprav rozměry nahoře v `drzak/drzak.py`.
 - Přihlášená aplikace Claude. Ověřeno s anglickým rozhraním.
 - Na sestavení Android SDK a JDK 17. Model Vosk si sestavení stáhne samo.
 - Pro nástroje v hovoru navíc Node.js a účet na Cloudflare (stačí Free plán).
