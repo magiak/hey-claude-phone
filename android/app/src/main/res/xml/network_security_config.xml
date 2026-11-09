@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Home printers speak plain HTTP (IPP on 631, eSCL on 80) and gets its address from DHCP,
+     so cleartext cannot be pinned to one host. The relay itself is wss:// when deployed. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

@@ -1,4 +1,5 @@
 import java.net.URI
+import java.util.Properties
 import java.util.zip.ZipInputStream
 
 plugins {
@@ -9,6 +10,11 @@ plugins {
 // Small English model: "claude" is an English word, the Czech small model does not know it.
 val voskModel = "vosk-model-small-en-us-0.15"
 val voskAssets = rootProject.layout.projectDirectory.dir("vosk-assets")
+
+// Personal values (the relay address with its key, the printer's address) live in local.properties, which git ignores.
+val localProperties = Properties().apply {
+    rootProject.file("local.properties").takeIf { it.exists() }?.inputStream()?.use { load(it) }
+}
 
 android {
     namespace = "cz.magiak.asistent"
@@ -21,6 +27,12 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "0.2"
+        buildConfigField("String", "KONEKTOR_URL", "\"${localProperties.getProperty("konektor.url", "")}\"")
+        buildConfigField("String", "PRINTER_HOST", "\"${localProperties.getProperty("printer.host", "")}\"")
+    }
+
+    buildFeatures {
+        buildConfig = true
     }
 
     buildTypes {
@@ -42,6 +54,7 @@ android {
 
 dependencies {
     implementation("com.alphacephei:vosk-android:0.3.75")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }
 
 // The model (~40 MB) stays out of git; it is fetched once from the Vosk site.

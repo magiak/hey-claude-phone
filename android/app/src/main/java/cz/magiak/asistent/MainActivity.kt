@@ -17,6 +17,7 @@ import android.util.TypedValue
 import android.view.View
 import android.view.WindowManager
 import android.widget.TextView
+import cz.magiak.asistent.mcp.Konektor
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -160,7 +161,9 @@ class MainActivity : Activity() {
             else -> null
         }
         val note = if (trial) "Zkouška: Clauda neotevírám, jen bliknu." else null
-        status.text = listOfNotNull(Session.problem, service, note, recordNote, listenStatus).joinToString("\n")
+        val konektor = if (BuildConfig.KONEKTOR_URL.isNotEmpty() && !Konektor.online)
+            "Konektor je odpojený: Claude teď hlasitost, tisk ani sken neovládne." else null
+        status.text = listOfNotNull(Session.problem, service, konektor, note, recordNote, listenStatus).joinToString("\n")
     }
 
     override fun onPause() {

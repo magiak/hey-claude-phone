@@ -12,11 +12,16 @@ Neoficiální projekt, s Anthropic nesouvisí. Spoléhá na tlačítko „Voice 
 2. **Hlasový režim.** Asistent pustí mikrofon, otevře Clauda a služba přístupnosti klepne na „Voice mode“. Tlačítko hledá podle názvu, takže funguje na výšku i na šířku. Klepnutí na hodiny dělá totéž.
 3. **Návrat na hodiny.** Když se hovor minutu nehýbe (nejdéle po 15 minutách), služba ho ukončí, přečte z chatu poslední otázku a odpověď a nechá je na displeji 12 hodin. Uložené jsou jen v telefonu.
 
+## Hlasitost, tisk a sken z hovoru
+
+Aplikace Claude neumí volat lokální MCP servery, jen konektory s veřejnou adresou. Asistent proto může být MCP serverem sám: drží spojení s malým průchodem na Cloudflare a Claude přes něj v hovoru mění hlasitost telefonu. Tisk a sken na tiskárně v Wi-Fi jsou napsané, na skutečné tiskárně zatím neověřené. Přidat jde jakýkoliv další nástroj. Je to volitelné, nasazení a nastavení konektoru popisuje [`konektor/README.md`](konektor/README.md).
+
 ## Co je potřeba
 
 - Telefon s Androidem 8 nebo novějším, trvale v nabíječce.
 - Přihlášená aplikace Claude. Ověřeno s anglickým rozhraním.
 - Na sestavení Android SDK a JDK 17. Model Vosk si sestavení stáhne samo.
+- Pro nástroje v hovoru navíc Node.js a účet na Cloudflare (stačí Free plán).
 
 ## Instalace
 
@@ -26,6 +31,8 @@ Telefon připoj přes USB se zapnutým laděním USB:
 cd android
 ./gradlew installDebug
 ```
+
+Po instalaci aplikaci spouštěj jen `adb shell am start -n cz.magiak.asistent/.MainActivity`. `am force-stop` vypne službu přístupnosti.
 
 ## Nastavení telefonu
 
