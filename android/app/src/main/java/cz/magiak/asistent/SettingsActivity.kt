@@ -1,6 +1,7 @@
 package cz.magiak.asistent
 
 import android.app.Activity
+import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import android.view.Gravity
@@ -75,6 +76,14 @@ class SettingsActivity : Activity() {
         }, below(24))
         page.addView(label("Pro černý rámeček. Světlý sedí k bílému.", 14f, GRAY))
 
+        // Every dashboard route into Claude starts a call, and ending it jumps back to the
+        // clock, so Claude's own settings were out of reach.
+        page.addView(Button(this).apply {
+            text = "Otevřít Clauda bez hovoru"
+            setOnClickListener { openClaudePlain() }
+        }, below(32))
+        page.addView(label("Na nastavení Clauda nebo přihlášení. Zpátky na hodiny tlačítkem Domů.", 14f, GRAY))
+
         setContentView(ScrollView(this).apply {
             setBackgroundColor(Color.BLACK)
             addView(page, MATCH_PARENT, WRAP_CONTENT)
@@ -94,6 +103,14 @@ class SettingsActivity : Activity() {
     override fun onUserInteraction() {
         page.removeCallbacks(backToDashboard)
         page.postDelayed(backToDashboard, IDLE_MS)
+    }
+
+    private fun openClaudePlain() {
+        val launch = packageManager.getLaunchIntentForPackage(Config.CLAUDE_PACKAGE) ?: return
+        // Without a pending launch the voice service leaves Claude alone.
+        Session.launchRequestedAt = 0L
+        startActivity(launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        finish()
     }
 
     private fun label(value: String, size: Float, color: Int) = TextView(this).apply {
