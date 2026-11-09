@@ -10,7 +10,7 @@ object Config {
     // in an empty chat instead of continuing the last one (his wish, 2026-11-09).
     const val NEW_CHAT_URL = "https://claude.ai/new"
 
-    // Tuning the wake word: the dashboard and `adb logcat -s Asistent` show every heard word
+    // Tuning the wake word: the dashboard in trial mode and `adb logcat -s Asistent` show every heard word
     // with its confidence. The recognizer may only output these words; decoys give similar
     // sounds somewhere else to land, so not every "klaud"-like noise becomes "claude".
     // Two words in a row, each above the bar: one syllable mixed too easily with "cloud" and the

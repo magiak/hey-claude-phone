@@ -66,6 +66,15 @@ class SettingsActivity : Activity() {
         silence.addView(choices)
         page.addView(silence, below(24))
 
+        page.addView(Switch(this).apply {
+            text = "Tmavý vzhled"
+            textSize = 20f
+            setTextColor(Color.WHITE)
+            isChecked = UserSettings.dark(this@SettingsActivity)
+            setOnCheckedChangeListener { _, on -> UserSettings.setDark(this@SettingsActivity, on) }
+        }, below(24))
+        page.addView(label("Pro černý rámeček. Světlý sedí k bílému.", 14f, GRAY))
+
         setContentView(ScrollView(this).apply {
             setBackgroundColor(Color.BLACK)
             addView(page, MATCH_PARENT, WRAP_CONTENT)

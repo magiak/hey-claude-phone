@@ -32,7 +32,7 @@ class ScreenView(context: Context, private val onFailed: () -> Unit) : WebView(c
     init {
         settings.javaScriptEnabled = true
         settings.domStorageEnabled = true
-        setBackgroundColor(context.getColor(R.color.panel))
+        setBackgroundColor(context.getColor(R.color.surface))
         addJavascriptInterface(Bridge(), "AsistentNative")
         webViewClient = object : WebViewClient() {
             // A link would leave the page and keep the bridge for whatever site it opened.

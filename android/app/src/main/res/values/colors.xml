@@ -1,5 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Light for his white holder, dark for a black one, where a black surface hides the window edge.
+     Switched on the settings screen, applied by Theme.kt. -->
 <resources>
-    <color name="background">#FFFFFF</color>
-    <color name="panel">#F0EEE6</color>
+    <color name="surface">#F0EEE6</color>
+    <color name="card">#FFFFFF</color>
+    <color name="clock">#D97757</color>
+    <color name="text">#141413</color>
+    <color name="muted">#5E5D59</color>
+    <color name="status">#6B6A64</color>
+    <color name="faint">#A6A39A</color>
+    <color name="title">#C15F3C</color>
+
+    <color name="surface_dark">#000000</color>
+    <color name="card_dark">#262624</color>
+    <color name="clock_dark">#D97757</color>
+    <color name="text_dark">#ECEAE2</color>
+    <color name="muted_dark">#A6A39A</color>
+    <color name="status_dark">#9A978E</color>
+    <color name="faint_dark">#6B6A64</color>
+    <color name="title_dark">#E0896A</color>
 </resources>

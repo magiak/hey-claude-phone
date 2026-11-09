@@ -10,7 +10,6 @@ import android.content.pm.PackageManager
 import android.media.AudioManager
 import android.media.ToneGenerator
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
@@ -90,13 +89,6 @@ class MainActivity : Activity() {
         screenProblem = findViewById(R.id.screen_problem)
         CustomScreen.onChange = ::showScreen
         answerSize = answer.textSize
-        window.decorView.setBackgroundColor(getColor(R.color.background))
-        // Otherwise the strip beside the camera notch stays black next to the light background.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            window.attributes = window.attributes.apply {
-                layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
-            }
-        }
         // On a fresh start the system clears the hide flags again and the navigation bar stays
         // (ZenFone, 2026-11-08); a desk device has nobody to swipe it away.
         @Suppress("DEPRECATION")
@@ -143,6 +135,7 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        Theme.apply(this)
         hideSystemBars()
         Session.launchRequestedAt = 0L
         glow.reset()
@@ -312,6 +305,8 @@ class MainActivity : Activity() {
     private fun showDemo(intent: Intent) {
         if (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE == 0) return
         trial = intent.getStringExtra("ukazka") == "zkouska"
+        // Heard words with their confidence are for tuning only; on the desk they were noise.
+        findViewById<View>(R.id.heard).visibility = if (trial) View.VISIBLE else View.GONE
         val show: () -> Unit = when (intent.getStringExtra("ukazka")) {
             "hlas" -> glow::voice
             "slovo" -> glow::wake

@@ -65,7 +65,7 @@ class WakeWordListener(
         if (!running || service != null) return
         recognizer = Recognizer(model, SAMPLE_RATE, grammar()).apply { setWords(true) }
         service = SpeechService(recognizer, SAMPLE_RATE).also { it.startListening(this) }
-        onStatus("Poslouchám. Řekni „${Config.WAKE_LABEL}“, nebo klepni na obrazovku.")
+        onStatus("Poslouchám")
     }
 
     // A wall device has nobody to reopen the app, so a dead mic must heal itself.

@@ -26,7 +26,7 @@ android {
         minSdk = 26
         targetSdk = 36
         versionCode = 1
-        versionName = "0.2"
+        versionName = "0.3"
         buildConfigField("String", "KONEKTOR_URL", "\"${localProperties.getProperty("konektor.url", "")}\"")
         buildConfigField("String", "PRINTER_HOST", "\"${localProperties.getProperty("printer.host", "")}\"")
     }

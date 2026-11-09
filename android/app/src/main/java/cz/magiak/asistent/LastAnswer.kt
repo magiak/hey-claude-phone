@@ -39,7 +39,7 @@ data class LastAnswer(val question: String, val answer: String, val at: Long) {
             val w = screen.width().toFloat()
             val texts = nodes.mapNotNull { node ->
                 val text = node.text?.toString()?.trim().orEmpty()
-                if (text.isEmpty() || node.isEditable) return@mapNotNull null
+                if (text.isEmpty() || node.isEditable || isAppText(text)) return@mapNotNull null
                 val b = Rect().also(node::getBoundsInScreen)
                 if (b.top < screen.top + screen.height() * 0.08) return@mapNotNull null
                 when {
@@ -58,5 +58,20 @@ data class LastAnswer(val question: String, val answer: String, val at: Long) {
             val best = exchanges.lastOrNull { it.second.length >= Config.MIN_ANSWER_CHARS } ?: return null
             return LastAnswer(best.first, best.second.toString(), System.currentTimeMillis())
         }
+
+        // Claude app chrome that sits at the left edge like an answer; it filled the card after a
+        // volume call on 2026-11-09: "Voice chat ended", "46s", tool "Hlasitost", connector
+        // initial "D", the "Claude is AI…" footer.
+        private val DURATION = Regex("""^\d+\s?(s|m|min|h)(\s?\d+\s?s)?$""")
+        // Titles of his connector's tools (mcp/Tools.kt), as the app shows them on a tool call.
+        private val TOOL_TITLES = setOf("Hlasitost", "Připravit tisk", "Vytisknout", "Naskenovat")
+
+        private fun isAppText(text: String) =
+            text.length <= 2 ||
+                text.startsWith("Voice chat", ignoreCase = true) ||
+                text.startsWith("Claude is AI", ignoreCase = true) ||
+                text.contains("can make mistakes", ignoreCase = true) ||
+                DURATION.matches(text) ||
+                text in TOOL_TITLES
     }
 }

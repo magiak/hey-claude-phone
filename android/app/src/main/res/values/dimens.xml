@@ -4,9 +4,9 @@
          and 1 mm on the other sides, so every inset is counted from the visible edge. -->
     <dimen name="hidden_start">40dp</dimen>
     <dimen name="hidden_edge">6dp</dimen>
-    <!-- Hidden part plus a 32dp visible white frame around the panel. -->
-    <dimen name="frame_start">72dp</dimen>
-    <dimen name="frame_edge">38dp</dimen>
-    <!-- Stops short of the frame plus the panel's 32dp padding, so the glow never covers text. -->
-    <dimen name="glow_depth">60dp</dimen>
+    <!-- Hidden part plus 40dp of the visible window. -->
+    <dimen name="content_start">80dp</dimen>
+    <dimen name="content_edge">46dp</dimen>
+    <!-- Shallower than the 40dp to the text: a glow over the text looked ugly (2026-11-09). -->
+    <dimen name="glow_depth">30dp</dimen>
 </resources>
