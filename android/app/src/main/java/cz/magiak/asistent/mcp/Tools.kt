@@ -80,7 +80,9 @@ class Tools(private val context: Context) {
                     "vlož je jako hodnoty a napiš, k jaké chvíli platí. asistent.lastAnswer() vrátí poslední otázku a odpověď " +
                     "z hovoru jako {question, answer, at} nebo null. Hodiny a datum počítej v JavaScriptu, česky. " +
                     "Barvy současného vzhledu telefonu: ${CustomScreen.palette(context)}, velká čísla patkovým písmem. " +
-                    "Obrazovka se ukáže, až hovor skončí. Uživateli řekni jednou větou, co na ní bude, kód nečti nahlas.",
+                    "Obrazovka se ukáže, až hovor skončí. Mluv co nejméně: neopakuj, co uživatel chce, " +
+                    "neohlašuj čtení ani zápis a nástroje volej mlčky. Po uložení řekni jen „Hotovo“ a pár slov, " +
+                    "kde to je. Kód nečti nahlas.",
                 JSONObject()
                     .put("html", JSONObject().put("type", "string"))
                     .put("replace", JSONObject().put("type", "boolean")),
@@ -91,7 +93,7 @@ class Tools(private val context: Context) {
             tool(
                 "get_home_screen", "Přečíst obrazovku",
                 "Vrátí HTML současné domovské obrazovky telefonu, abys ji upravil nástrojem set_home_screen. " +
-                    "Když jsou na ní původní hodiny, vrátí jejich kopii jako stránku. Volej před každou změnou obrazovky.",
+                    "Když jsou na ní původní hodiny, vrátí jejich kopii jako stránku. Volej před každou změnou obrazovky, mlčky.",
                 JSONObject(),
             )
         )
@@ -128,14 +130,16 @@ class Tools(private val context: Context) {
         "get_home_screen" -> {
             readRevision = CustomScreen.revision
             textResult(
-                CustomScreen.load(context)
-                    ?: ("Na displeji jsou původní hodiny s poslední odpovědí. Tady je jejich kopie jako stránka, " +
-                        "přidej nebo změň v ní, co uživatel chce:\n\n" + CustomScreen.original(context))
+                "Nic uživateli neříkej, uprav stránku a rovnou zavolej set_home_screen.\n\n" + (
+                    CustomScreen.load(context)
+                        ?: ("Na displeji jsou původní hodiny s poslední odpovědí. Tady je jejich kopie jako stránka, " +
+                            "přidej nebo změň v ní, co uživatel chce:\n\n" + CustomScreen.original(context))
+                    )
             )
         }
         "reset_home_screen" -> {
             CustomScreen.reset(context)
-            textResult("Hotovo, po konci hovoru budou na obrazovce zase původní hodiny.")
+            textResult("Hodiny se vrátí po konci hovoru. Uživateli řekni jen „Hotovo“.")
         }
         else -> textResult("Neznámý nástroj $name.", error = true)
     }
@@ -144,9 +148,11 @@ class Tools(private val context: Context) {
     // scratch and the clock was gone (2026-11-09). So a set must build on what get returned.
     @Volatile private var readRevision = -1
 
+    // In voice mode every step gets narrated aloud ("now I read it, now I write it"), and he found it
+    // tiring (2026-11-10). Results are what Claude reads right before speaking, so they say what to say.
     private fun setScreen(html: String, replace: Boolean): JSONObject {
         if (!replace && readRevision != CustomScreen.revision) return textResult(
-            "Neuloženo. Nejdřív zavolej get_home_screen a uprav současnou obrazovku, uživatel ji chce zachovat. " +
+            "Neuloženo. Uživateli to neříkej: zavolej get_home_screen, uprav současnou obrazovku a pošli ji znovu. " +
                 "replace: true pošli, jen když výslovně chce úplně jinou.",
             error = true,
         )
@@ -155,7 +161,7 @@ class Tools(private val context: Context) {
         CustomScreen.save(context, html)
         // What Claude just sent is the page now, so more tweaks in the same call need no new read.
         readRevision = CustomScreen.revision
-        return textResult("Uloženo. Obrazovka se ukáže, až hovor skončí.")
+        return textResult("Uloženo, ukáže se po konci hovoru. Uživateli řekni jen „Hotovo“ a pár slov, kde to je, nic víc.")
     }
 
     // The page fills the holder's window, which hides the notch strip and a thin edge (dimens.xml).
