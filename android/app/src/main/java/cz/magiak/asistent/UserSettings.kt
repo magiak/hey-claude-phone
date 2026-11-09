@@ -26,5 +26,7 @@ object UserSettings {
 
     fun setDark(c: Context, value: Boolean) = prefs(c).edit().putBoolean(DARK, value).apply()
 
+    fun reset(c: Context) = prefs(c).edit().clear().apply()
+
     private fun prefs(c: Context) = c.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 }

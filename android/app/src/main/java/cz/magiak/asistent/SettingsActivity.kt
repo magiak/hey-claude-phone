@@ -1,6 +1,7 @@
 package cz.magiak.asistent
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
@@ -84,6 +85,12 @@ class SettingsActivity : Activity() {
         }, below(32))
         page.addView(label("Na nastavení Clauda nebo přihlášení. Zpátky na hodiny tlačítkem Domů.", 14f, GRAY))
 
+        page.addView(Button(this).apply {
+            text = "Obnovit výchozí"
+            setOnClickListener { confirmReset() }
+        }, below(32))
+        page.addView(label("Hodiny místo vlastní obrazovky a nastavení jako na začátku.", 14f, GRAY))
+
         setContentView(ScrollView(this).apply {
             setBackgroundColor(Color.BLACK)
             addView(page, MATCH_PARENT, WRAP_CONTENT)
@@ -111,6 +118,18 @@ class SettingsActivity : Activity() {
         Session.launchRequestedAt = 0L
         startActivity(launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         finish()
+    }
+
+    private fun confirmReset() {
+        AlertDialog.Builder(this)
+            .setMessage("Vrátit hodiny a výchozí nastavení? Vlastní obrazovka se smaže.")
+            .setPositiveButton("Obnovit") { _, _ ->
+                CustomScreen.reset(this)
+                UserSettings.reset(this)
+                finish()
+            }
+            .setNegativeButton("Zrušit", null)
+            .show()
     }
 
     private fun label(value: String, size: Float, color: Int) = TextView(this).apply {
