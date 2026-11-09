@@ -25,6 +25,7 @@ class ClaudeVoiceService : AccessibilityService() {
     private var lastChangeAt = 0L
     private var lastScreen = ""
     private var dumpedLabels = false
+    private var clickScheduled = false
 
     private val watchCall = object : Runnable {
         override fun run() {
@@ -47,6 +48,7 @@ class ClaudeVoiceService : AccessibilityService() {
         if (state == State.IDLE && launchedByDashboard()) {
             state = State.CLICKING
             dumpedLabels = false
+            clickScheduled = false
             handler.postDelayed(giveUp, Config.CLICK_TIMEOUT_MS)
         }
         if (state != State.CLICKING) return
@@ -56,29 +58,45 @@ class ClaudeVoiceService : AccessibilityService() {
         if (event.eventType == AccessibilityEvent.TYPE_VIEW_CLICKED) {
             Log.i(Config.TAG, "Někdo kliká v Claudovi, nechávám to na něm.")
             handler.removeCallbacks(giveUp)
+            handler.removeCallbacks(clickVoice)
             Session.launchRequestedAt = 0L
             state = State.IDLE
             return
         }
 
-        // The event can arrive while the dashboard still owns the active window.
-        val root = rootInActiveWindow?.takeIf { it.packageName == Config.CLAUDE_PACKAGE } ?: return
-        val button = findButton(root, Config.VOICE_BUTTON)
-        if (button == null) {
-            if (!dumpedLabels) logLabels(root)
-            return
+        // A click while Claude is still switching to the new chat could start the call in the
+        // previous one, so the first look comes a moment after Claude shows up.
+        if (!clickScheduled) {
+            clickScheduled = true
+            handler.postDelayed(clickVoice, if (UserSettings.newChat(this)) Config.NEW_CHAT_SETTLE_MS else 0L)
         }
-        if (click(button)) {
-            Log.i(Config.TAG, "Spouštím hlasový režim.")
-            handler.removeCallbacks(giveUp)
-            Session.launchRequestedAt = 0L
-            Session.problem = null
-            state = State.IN_CALL
-            callStartedAt = System.currentTimeMillis()
-            lastChangeAt = callStartedAt
-            lastScreen = ""
-            handler.postDelayed(watchCall, 3_000)
+    }
+
+    private val clickVoice: Runnable = object : Runnable {
+        override fun run() {
+            if (state != State.CLICKING) return
+            // The dashboard may still own the active window.
+            val root = rootInActiveWindow?.takeIf { it.packageName == Config.CLAUDE_PACKAGE }
+            val button = root?.let { findButton(it, Config.VOICE_BUTTON) }
+            if (button != null && click(button)) {
+                Log.i(Config.TAG, "Spouštím hlasový režim.")
+                startWatching()
+                return
+            }
+            if (root != null && button == null && !dumpedLabels) logLabels(root)
+            handler.postDelayed(this, 500)
         }
+    }
+
+    private fun startWatching() {
+        handler.removeCallbacks(giveUp)
+        Session.launchRequestedAt = 0L
+        Session.problem = null
+        state = State.IN_CALL
+        callStartedAt = System.currentTimeMillis()
+        lastChangeAt = callStartedAt
+        lastScreen = ""
+        handler.postDelayed(watchCall, 3_000)
     }
 
     override fun onInterrupt() {}
@@ -121,7 +139,8 @@ class ClaudeVoiceService : AccessibilityService() {
             lastScreen = screen
             lastChangeAt = now
         }
-        if (now - lastChangeAt > Config.CALL_IDLE_MS || now - callStartedAt > Config.MAX_CALL_MS) {
+        val idleMs = UserSettings.callIdleSeconds(this) * 1_000L
+        if (now - lastChangeAt > idleMs || now - callStartedAt > Config.MAX_CALL_MS) {
             Log.i(Config.TAG, "Hovor ztichl, ukončuju ho.")
             findButton(root, Config.STOP_BUTTON)?.let(::click)
             state = State.IDLE

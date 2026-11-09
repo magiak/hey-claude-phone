@@ -9,6 +9,7 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.media.AudioManager
 import android.media.ToneGenerator
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
@@ -117,6 +118,9 @@ class MainActivity : Activity() {
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
             true
         }
+        findViewById<View>(R.id.settings).setOnClickListener {
+            startActivity(Intent(this, SettingsActivity::class.java))
+        }
         showDemo(intent)
     }
 
@@ -210,7 +214,10 @@ class MainActivity : Activity() {
         }
         status.text = "Otevírám Clauda…"
         Session.launchRequestedAt = System.currentTimeMillis()
-        startActivity(launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        val target = if (UserSettings.newChat(this))
+            Intent(Intent.ACTION_VIEW, Uri.parse(Config.NEW_CHAT_URL)).setPackage(Config.CLAUDE_PACKAGE)
+        else launch
+        startActivity(target.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 
     private fun showLastAnswer(last: LastAnswer?) {

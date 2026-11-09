@@ -6,6 +6,9 @@ object Config {
     const val TAG = "Asistent"
 
     const val CLAUDE_PACKAGE = "com.anthropic.claude"
+    // An app link the Claude app handles itself (its manifest, app 1.261104.19): each call starts
+    // in an empty chat instead of continuing the last one (his wish, 2026-11-09).
+    const val NEW_CHAT_URL = "https://claude.ai/new"
 
     // Tuning the wake word: the dashboard and `adb logcat -s Asistent` show every heard word
     // with its confidence. The recognizer may only output these words; decoys give similar
@@ -29,9 +32,10 @@ object Config {
     val STOP_BUTTON = Regex("^(stop|zastavit|ukončit)$", RegexOption.IGNORE_CASE)
 
     const val CLICK_TIMEOUT_MS = 15_000L
+    const val NEW_CHAT_SETTLE_MS = 1_000L
 
-    // Voice mode never ends by itself and keeps the mic, so a quiet call is stopped here.
-    const val CALL_IDLE_MS = 60_000L
+    // Voice mode never ends by itself and keeps the mic, so the service stops it after the quiet
+    // chosen in settings; this caps a call whose screen never stops changing.
     const val MAX_CALL_MS = 15 * 60_000L
 
     // The last answer stays on the display. It is his private chat on a shared screen:

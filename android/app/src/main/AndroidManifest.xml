@@ -36,6 +36,14 @@
             </intent-filter>
         </activity>
 
+        <!-- Material, not DeviceDefault: switches and radio buttons must show on the black page. -->
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="false"
+            android:screenOrientation="sensorLandscape"
+            android:showWhenLocked="true"
+            android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen" />
+
         <service
             android:name=".ClaudeVoiceService"
             android:exported="true"

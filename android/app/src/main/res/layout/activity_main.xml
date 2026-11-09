@@ -122,6 +122,17 @@
         </LinearLayout>
     </LinearLayout>
 
+    <ImageView
+        android:id="@+id/settings"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_gravity="top|end"
+        android:layout_margin="28dp"
+        android:alpha="0.6"
+        android:contentDescription="Nastavení"
+        android:padding="12dp"
+        android:src="@drawable/ic_settings" />
+
     <!-- On top, but not clickable, so taps still reach the root. Padding = what the holder hides. -->
     <cz.magiak.asistent.GlowView
         android:id="@+id/glow"
