@@ -3,3 +3,5 @@ node_modules/
 .dev.vars
 worker-configuration.d.ts
 .prod.vars
+# Puts the connector key on the clipboard, so it holds the key too.
+copy-connector-key.cmd
