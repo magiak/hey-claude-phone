@@ -24,6 +24,7 @@ except ImportError:
     write_3mf = None
 
 OUT = Path(__file__).parent
+VERSION = "v3"         # vytištěné verze jsou v VERZE.md a mají git tag drzak-vN
 sys.stdout.reconfigure(encoding="utf-8")
 
 # ---------- TELEFON (ASUS ZenFone 5Z, na šířku, výřez kamery vlevo, tlačítka nahoře) ----------
@@ -50,7 +51,6 @@ CH_FRONT, CH_BACK = 1.5, 0.6
 WIN_MARGIN, WIN_R, WIN_CH = 1.0, 4.0, 1.6   # okénko 1 mm uvnitř displeje, sražení 39° k čelu
 RIB_T = 1.6
 STOP_LEN = 12.0        # zarážky nahoře jen u konců: tlačítka jsou nahoře uprostřed
-GRILLE_D, GRILLE_PITCH = 2.0, 4.0
 BOSS_D = 6.5
 COV_CLR = 0.25
 BODY_G = 68.0          # tělo s víčkem podle sliceru, první tisk
@@ -107,7 +107,6 @@ BOSS_TOP = Z_COV - RING_H
 HOLE_BOTTOM = D - HEAD_SINK - SCREW_LEN - 0.5
 assert HOLE_BOTTOM >= FRONT_T + 0.3, "šroub by prorazil čelo"
 assert BOSS_Y - BOSS_D / 2 >= CY1 + 0.9, "sloupek zasahuje do telefonu"
-GRILLE_X = (CX1 + HL_IN) / 2
 KEY_X = (CX1 + RIB_T + HL_IN) / 2
 AX_Z = D + BR_T + KN_R + 0.3    # kloub 0,3 mm nad lištou
 LUG_X0 = LEG_W / 2 + KN_CLR
@@ -173,11 +172,6 @@ def build_shell():
     m -= ext(rrect(2 * (HL_IN - END_PAD), 2 * HH_IN, R_OUT - WALL), FRONT_T, z1 + 0.01)
     m -= Manifold.batch_hull([ext(rrect(WW + 2 * WIN_CH, WH + 2 * WIN_CH, WIN_R + WIN_CH), -1, 0),
                               ext(rrect(WW, WH, WIN_R), FRONT_T, FRONT_T + 1)])
-    # mřížka po stranách: vpravo z ní jde zvuk spodního reproduktoru a mikrofonu, vlevo sluchátka
-    for sx in (-1, 1):
-        for i in (-1, 0, 1):
-            for j in range(-3, 4):
-                m -= cyl(sx * GRILLE_X + i * GRILLE_PITCH, j * GRILLE_PITCH, -1, FRONT_T + 1, GRILLE_D)
 
     feats = [
         box(CX0, CX1, CY0 - RIB_T, CY0, z0, z1),                              # dole celá délka
@@ -428,12 +422,13 @@ def main():
     print(f"na nožce: sklon {STAND_TILT:.0f}°, těžiště {front:.1f} mm za spodní hranou těla, {back:.1f} mm před patkou; "
           f"pata dosedá na lištu v y {h0:.1f}–{h1:.1f}, zaklapnutá nožka končí na y {leg.bounding_box()[1]:.1f}")
 
-    desc = ("Drzak domaciho asistentu (ASUS ZenFone 5Z na sirku), nova zadni cast 2026-11-10. Telo zustava z prvniho tisku. "
+    desc = (f"Drzak domaciho asistentu (ASUS ZenFone 5Z na sirku), verze {VERSION}. "
             "Podlozka 1: test zavesu. Kus listy s okem a kus nozky spojit sroubkem M2.5x10 skrz oko do nozky. "
             f"Sroubek dotahnout jen tak, aby se nozka jeste otacela; musi se zastavit na {LEG_OPEN:.0f} stupnich. "
             "Podlozka 2: nove vicko (kabel vychazi dozadu vyrezem dole vpravo, zvuk z koncu otvory vzadu), "
             "lista se zavesem a nozka. Lista se prisroubuje hornimi dvema sroubky vicka, nozka dvema sroubky "
-            "M2.5x10 z boku skrz oka. Celkem 6 sroubku. Na zed: listu odsroubovat, vicko prisroubovat samotne.")
+            "M2.5x10 z boku skrz oka. Celkem 6 sroubku. Na zed: listu odsroubovat, vicko prisroubovat samotne. "
+            "Podlozka 3: nove celo cerne, bez tecek, konce uvnitr o 4 mm kratsi nez prvni tisk, vicko z podlozky 2 do nej pasuje.")
     if write_3mf is None:
         print("bambu3mf chybí: 3MF zůstává z minula, nové jsou jen STL ve složce stl/")
     else:
@@ -442,9 +437,10 @@ def main():
             [("Test hinge lug", meshes["test_zaves_oko"], 1), ("Test hinge knuckle", meshes["test_zaves_kloub"], 1)],
             [("Back cover", meshes["vicko"], 1), ("Hinge bracket", meshes["lista"], 1),
              ("Kickstand", meshes["nozka"], 1, brim)],
-        ], plate_names=["1 Hinge test - white PLA", "2 Back cover and kickstand - white PLA"],
-            info={"Title": "Home assistant phone holder", "Designer": "Lukas Kmoch", "Description": desc},
-            filaments=[("Generic PLA", "#F2F2F2")])
+            [("Front frame", meshes["telo"], 2)],
+        ], plate_names=["1 Hinge test - white PLA", "2 Back cover and kickstand - white PLA", "3 Front frame - black PLA"],
+            info={"Title": f"Home assistant phone holder {VERSION}", "Designer": "Lukas Kmoch", "Description": desc},
+            filaments=[("Generic PLA", "#F2F2F2"), ("Generic PLA", "#1A1A1A")])
     preview(T, shell, cover_b, bracket, leg, OUT / "nahled.png")
 
 
