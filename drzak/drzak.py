@@ -35,9 +35,12 @@ SLACK_L, SLACK_W = 0.8, 0.6   # vůle kapsy celkem
 BACK_GAP = 1.5         # za telefonem: hrbol kamery se nesmí opřít o víčko
 PRESS_CLR = 0.3        # žebra víčka tlačí telefon k čelu s touhle vůlí
 # Za pravým koncem úhlový konektor USB-C. Stěna ho drží zasunutý: v prvním tisku (16 mm)
-# za ním zbyly ~4 mm a kabel vypadával (řekl 2026-11-08); o 3,5 mm míň nechá 0,5 mm vůle na vložení.
+# za ním zbyly ~4 mm a kabel vypadával (řekl 2026-11-08). Tělo z 2026-11-08 má o 3,5 mm míň a mezera zůstala.
 # Víčko musí pasovat do už vytištěného těla, takže se tohle číslo mění jen spolu s novým tělem.
 PLUG_SPACE = 12.5
+# Zbylých 0,5 mm do jeho 4 mm (potvrdil 2026-11-10) ubírá stěna zesílená uvnitř na obou koncích stejně,
+# jak chtěl. Obrys zůstává, takže víčko z 2026-11-10 sedne do starého i nového těla.
+END_PAD = 0.5
 
 # ---------- TĚLO ----------
 FRONT_T, WALL, COVER_T = 2.0, 2.0, 1.8
@@ -165,7 +168,9 @@ def one(m, name):
 
 def build_shell():
     m = chamfered(rrect(2 * HL, 2 * HH, R_OUT), 0, D, CH_FRONT, CH_BACK)
-    m -= ext(rrect(2 * HL_IN, 2 * HH_IN, R_OUT - WALL), FRONT_T, D + 1)
+    z0, z1 = FRONT_T - 0.3, Z_COV - KEY_PAD - 0.2    # pod podložkami klíčových dírek, telefon končí na 9,9
+    m -= ext(rrect(2 * HL_IN, 2 * HH_IN, R_OUT - WALL), z1, D + 1)
+    m -= ext(rrect(2 * (HL_IN - END_PAD), 2 * HH_IN, R_OUT - WALL), FRONT_T, z1 + 0.01)
     m -= Manifold.batch_hull([ext(rrect(WW + 2 * WIN_CH, WH + 2 * WIN_CH, WIN_R + WIN_CH), -1, 0),
                               ext(rrect(WW, WH, WIN_R), FRONT_T, FRONT_T + 1)])
     # mřížka po stranách: vpravo z ní jde zvuk spodního reproduktoru a mikrofonu, vlevo sluchátka
@@ -174,7 +179,6 @@ def build_shell():
             for j in range(-3, 4):
                 m -= cyl(sx * GRILLE_X + i * GRILLE_PITCH, j * GRILLE_PITCH, -1, FRONT_T + 1, GRILLE_D)
 
-    z0, z1 = FRONT_T - 0.3, Z_COV - KEY_PAD - 0.2    # pod podložkami klíčových dírek, telefon končí na 9,9
     feats = [
         box(CX0, CX1, CY0 - RIB_T, CY0, z0, z1),                              # dole celá délka
         box(CX0 - RIB_T, CX0, -HH_IN - 0.5, CY0 + 15, z0, z1),                 # vlevo dole
