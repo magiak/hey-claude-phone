@@ -81,7 +81,7 @@ Když se tlačítko hlasového režimu nenajde, `python adb_test.py --pruzkum` o
 
 ## Držák
 
-`drzak/` je 3D tisknutelný držák pro ASUS ZenFone 5Z na šířku, na zeď i na stůl. `asistent_drzak.3mf` je projekt pro Bambu Studio, `stl/` jsou samostatné díly a `drzak.py` je generátor (rozměry telefonu nahoře v souboru, potřebuje `numpy trimesh manifold3d matplotlib`). Tělo a víčko spojují 4 šroubky M2,5×10 se zápustnou hlavou, na zeď visí víčko na dvou šroubech. Potřebuješ úhlový kabel USB-C.
+`drzak/` je 3D tisknutelný držák pro ASUS ZenFone 5Z na šířku, na zeď i na stůl. `asistent_drzak.3mf` je projekt pro Bambu Studio, `stl/` jsou samostatné díly a `drzak.py` je generátor (rozměry telefonu nahoře v souboru, potřebuje `numpy trimesh manifold3d matplotlib`). Tělo a víčko spojují 4 šroubky M2,5×10 se zápustnou hlavou. Na stůl se pod horní dva šroubky přišroubuje lišta se sklopnou nožkou, nožku drží další 2 šroubky M2,5×10 z boku. Na zeď se lišta odšroubuje a víčko visí na dvou šroubech. Kabel vychází zezadu u spodní hrany, potřebuješ úhlový kabel USB-C.
 
 ## Licence
 
