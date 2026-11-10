@@ -64,7 +64,7 @@ data class LastAnswer(val question: String, val answer: String, val at: Long) {
         // initial "D", the "Claude is AI…" footer.
         private val DURATION = Regex("""^\d+\s?(s|m|min|h)(\s?\d+\s?s)?$""")
         // Titles of his connector's tools (mcp/Tools.kt), as the app shows them on a tool call.
-        private val TOOL_TITLES = setOf("Hlasitost", "Připravit tisk", "Vytisknout", "Naskenovat")
+        private val TOOL_TITLES = setOf("Hlasitost", "Připravit tisk", "Vytisknout", "Naskenovat", "Porady", "Přepis porady")
 
         private fun isAppText(text: String) =
             text.length <= 2 ||

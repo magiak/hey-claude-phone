@@ -49,11 +49,13 @@ def read_config():
         return re.findall(r'"([^"]+)"', re.search(rf"val {name} = listOf(?:<String>)?\(([^)]*)\)", text).group(1))
 
     conf = float(re.search(r"MIN_CONFIDENCE = ([0-9.]+)", text).group(1))
-    return words("WAKE_PHRASE"), words("DECOY_WORDS"), conf
+    gap = float(re.search(r"MAX_WAKE_GAP_S = ([0-9.]+)", text).group(1))
+    return words("WAKE_PHRASE"), words("DECOY_WORDS"), words("MEETING_START"), conf, gap
 
 
-def grammar(phrase, decoys, standalone=True):
-    items = [" ".join(phrase)] + (phrase if standalone else []) + decoys + ["[unk]"]
+def grammar(phrase, decoys, command, standalone=True):
+    """Same as WakeWordListener.grammar: the phrase alone and with the meeting command."""
+    items = [" ".join(phrase), " ".join(phrase + command)] + (phrase + command if standalone else []) + decoys + ["[unk]"]
     return json.dumps(list(dict.fromkeys(items)))
 
 
@@ -94,17 +96,19 @@ def decode(model, wav_path, gram):
     return results
 
 
-def is_wake(words, phrase, min_conf):
+def is_wake(words, phrase, min_conf, max_gap):
+    """Same as WakeWordListener.wakeAt."""
     n = len(phrase)
     return any(
-        all(words[i + k]["word"] == phrase[k] and words[i + k]["conf"] >= min_conf for k in range(n))
+        all(words[i + k]["word"] == phrase[k] and words[i + k]["conf"] >= min_conf
+            and (k == 0 or words[i + k]["start"] - words[i + k - 1]["end"] <= max_gap) for k in range(n))
         for i in range(len(words) - n + 1)
     )
 
 
-def is_miss(words, phrase):
+def is_miss(words, phrase, decoys):
     """Same as WakeWordListener.check: a lone first word is the recognizer's silence artifact."""
-    return any(w["word"] not in ("[unk]", phrase[0]) for w in words)
+    return any(w["word"] in phrase[1:] or w["word"] in decoys for w in words)
 
 
 def read_marks(path):
@@ -116,15 +120,15 @@ def read_marks(path):
     return marks
 
 
-def score(results, marks, phrase, min_conf):
+def score(results, marks, phrase, decoys, min_conf, max_gap):
     prompts = sorted((t, tag) for tag, t in marks.items() if re.fullmatch(r"(near|far)\d+", tag))
     talk = marks["talk"]
     caught = {tag: False for _, tag in prompts}
     false_hits = red_talk = red_prompt = 0
     for words in results:
         start = words[0]["start"]
-        hit = is_wake(words, phrase, min_conf)
-        heard = is_miss(words, phrase)
+        hit = is_wake(words, phrase, min_conf, max_gap)
+        heard = is_miss(words, phrase, decoys)
         window = next((tag for t, tag in prompts if t - EARLY_S <= start < t + PROMPT_S), None)
         if start >= talk:
             false_hits += hit
@@ -189,7 +193,7 @@ def main():
 
     SetLogLevel(-1)
     model = Model(str(MODEL))
-    phrase, decoys, min_conf = read_config()
+    phrase, decoys, command, min_conf, max_gap = read_config()
 
     phone_path = wav_path.with_name(wav_path.stem + "-telefon.txt")
     if phone_path.exists():
@@ -197,26 +201,26 @@ def main():
     else:
         print("Výsledek z telefonu chybí, shodu s počítačem neověřím.")
 
-    current = decode(model, wav_path, grammar(phrase, decoys))
+    current = decode(model, wav_path, grammar(phrase, decoys, command))
     print(f"\nCo slyšel při současném nastavení ({' '.join(phrase)}, práh {min_conf}):")
     for words in current:
-        mark = "ZELENÁ" if is_wake(words, phrase, min_conf) else "červená" if is_miss(words, phrase) else ""
+        mark = "ZELENÁ" if is_wake(words, phrase, min_conf, max_gap) else "červená" if is_miss(words, phrase, decoys) else ""
         print(f"  {words[0]['start']:6.1f} s  {fmt(words):60s} {mark}")
 
     absent = missing_words(model, EXTRA_DECOYS)
     extra = [w for w in EXTRA_DECOYS if w not in absent and w not in decoys and w not in phrase]
     variants = {
-        "současné": grammar(phrase, decoys),
-        "bez návnad": grammar(phrase, []),
-        "víc návnad": grammar(phrase, decoys + extra),
-        "jen fráze": grammar(phrase, [], standalone=False),
+        "současné": grammar(phrase, decoys, command),
+        "bez návnad": grammar(phrase, [], command),
+        "víc návnad": grammar(phrase, decoys + extra, command),
+        "jen fráze": grammar(phrase, [], command, standalone=False),
     }
     print(f"\nVarianty (z 5 zblízka a 5 z dálky; při řeči: spuštění / červená):")
     rows = []
     for name, gram in variants.items():
         results = current if name == "současné" else decode(model, wav_path, gram)
         for conf in [0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.7]:
-            s = score(results, marks, phrase, conf)
+            s = score(results, marks, phrase, decoys, conf, max_gap)
             rows.append((name, conf, s))
     rows.sort(key=lambda r: (r[2]["false"], -(r[2]["near"] + r[2]["far"]), r[2]["red_talk"]))
     for name, conf, s in rows:

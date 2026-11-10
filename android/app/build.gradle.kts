@@ -29,6 +29,8 @@ android {
         versionName = "0.3"
         buildConfigField("String", "KONEKTOR_URL", "\"${localProperties.getProperty("konektor.url", "")}\"")
         buildConfigField("String", "PRINTER_HOST", "\"${localProperties.getProperty("printer.host", "")}\"")
+        buildConfigField("String", "ELEVENLABS_KEY", "\"${localProperties.getProperty("elevenlabs.key", "")}\"")
+        buildConfigField("String", "ANTHROPIC_KEY", "\"${localProperties.getProperty("anthropic.key", "")}\"")
     }
 
     buildFeatures {
@@ -55,6 +57,7 @@ android {
 dependencies {
     implementation("com.alphacephei:vosk-android:0.3.75")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.anthropic:anthropic-java:3.8.0")
 }
 
 // The model (~40 MB) stays out of git; it is fetched once from the Vosk site.

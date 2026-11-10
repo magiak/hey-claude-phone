@@ -201,11 +201,10 @@ class VoiceRecording(
             lines.append(JSONObject().put("grammar", WakeWordListener.grammar())
                 .put("min_conf", Config.MIN_CONFIDENCE).toString()).append('\n')
             fun take(json: String) {
-                val words = JSONObject(json).optJSONArray("result") ?: return
+                val heard = WakeWordListener.heard(json) ?: return
                 lines.append(json.replace("\n", "")).append('\n')
-                val heard = (0 until words.length()).map { words.getJSONObject(it).let { w -> w.getString("word") to w.getDouble("conf") } }
                 if (WakeWordListener.isWake(heard)) {
-                    if (words.getJSONObject(0).getDouble("start") < TALK_S) asked++ else talk++
+                    if (heard[0].start < TALK_S) asked++ else talk++
                 }
             }
             Recognizer(model, SAMPLE_RATE.toFloat(), WakeWordListener.grammar()).use { recognizer ->

@@ -30,6 +30,27 @@ adb shell am start -n cz.magiak.asistent/.MainActivity --es ukazka obrazovka
 
 Zpátky na hodiny vede `--es ukazka hodiny`. Ve stránce je `await asistent.json(url)` a `await asistent.text(url)` (stahuje telefon, bez omezení CORS) a `asistent.lastAnswer()`.
 
+## Porada
+
+„Hey Claude, record the meeting“ (nebo tlačítko v nastavení) spustí nahrávání porady. Asistent mlčí a celou poradu nahrává v telefonu. Zhruba každé 2 až 3 minuty pošle kousek, uříznutý v pauze, na přepis do [ElevenLabs Scribe v2](https://elevenlabs.io/docs/capabilities/speech-to-text) s rozlišením mluvčích. „Hey Claude“ a otázka: telefon přepíše zbytek, pošle celý přepis s otázkou Claudovi přes API a krátkou odpověď přečte hlasem telefonu. „Hey Claude, end the meeting“ poradu ukončí a Claude napíše shrnutí s rozhodnutími a úkoly.
+
+Přepis a shrnutí jsou v telefonu v `porady/<datum>/` vedle nahrávky. V hovoru je najde nástroj konektoru „Porady“: „co jsme rozhodli na poslední poradě?“.
+
+Potřebuje dva klíče v `android/local.properties`: `elevenlabs.key` a `anthropic.key` (klíč z console.anthropic.com, ne předplatné aplikace). Zvuk porady jde do ElevenLabs a přepis do Anthropic, takže na cizí poradě se zeptej toho, kdo ji vede.
+
+Klíče ověříš jedním voláním každé služby, výsledek je v `adb logcat -s Asistent`:
+
+```bash
+adb shell am start -n cz.magiak.asistent/.MainActivity --es porada klice
+```
+
+Bez klíčů a bez zvuku jde celá porada vyzkoušet na nahrávce (16 kHz mono WAV, přepis offline anglicky, odpovědi zkušební):
+
+```bash
+adb push porada.wav /sdcard/Android/data/cz.magiak.asistent/files/porada.wav
+adb shell am start -n cz.magiak.asistent/.MainActivity --es porada start --ez nanecisto true --es soubor /sdcard/Android/data/cz.magiak.asistent/files/porada.wav --ef rychlost 2
+```
+
 ## Co je potřeba
 
 - Telefon s Androidem 8 nebo novějším a Obchodem Play, trvale v nabíječce. Ověřeno na ASUS ZenFone 5Z s Androidem 10.
@@ -39,6 +60,7 @@ Zpátky na hodiny vede `--es ukazka hodiny`. Ve stránce je `await asistent.json
 - Přihlášená aplikace Claude. Ověřeno s anglickým rozhraním.
 - Na sestavení Android SDK a JDK 17. Model Vosk si sestavení stáhne samo.
 - Pro nástroje v hovoru navíc Node.js a účet na Cloudflare (stačí Free plán).
+- Pro porady klíč k ElevenLabs a k Anthropic API.
 
 ## Instalace
 

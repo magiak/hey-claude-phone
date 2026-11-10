@@ -13,12 +13,16 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
+import android.util.Log
 import android.util.TypedValue
 import android.view.View
 import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.TextView
 import cz.magiak.asistent.mcp.Konektor
+import cz.magiak.asistent.meeting.Meeting
+import cz.magiak.asistent.meeting.MeetingArchive
+import cz.magiak.asistent.meeting.MeetingService
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -53,6 +57,7 @@ class MainActivity : Activity() {
     private lateinit var listener: WakeWordListener
     private var askedForMic = false
     private var screenLock: PowerManager.WakeLock? = null
+    private var resumed = false
 
     private val launchAfterFlash = Runnable { openClaude() }
     private val listenAgain = Runnable { listener.start() }
@@ -61,7 +66,7 @@ class MainActivity : Activity() {
         override fun run() {
             applyNight()
             date.text = DATE.format(Date()).replaceFirstChar { it.uppercase() }
-            if (!armed && recording == null) showLastAnswer(demoAnswer ?: LastAnswer.load(this@MainActivity))
+            if (!armed && recording == null) showCard()
             updateStatus()
             glow.postDelayed(this, 60_000)
         }
@@ -114,6 +119,8 @@ class MainActivity : Activity() {
         root.setOnClickListener {
             when {
                 armed -> startRecording()
+                // Voice mode would hear the whole meeting and answer it.
+                Meeting.state != Meeting.State.IDLE -> {}
                 recording == null -> openClaude()
             }
         }
@@ -124,6 +131,7 @@ class MainActivity : Activity() {
         findViewById<View>(R.id.settings).setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
+        Meeting.onChange = ::onMeetingChange
         showDemo(intent)
     }
 
@@ -135,6 +143,7 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        resumed = true
         Theme.apply(this)
         hideSystemBars()
         Session.launchRequestedAt = 0L
@@ -182,6 +191,8 @@ class MainActivity : Activity() {
                 }
             packageManager.getLaunchIntentForPackage(Config.CLAUDE_PACKAGE) == null ->
                 status.text = "Chybí aplikace Claude."
+            // The meeting service holds the mic and listens for the wake word itself.
+            Meeting.recording -> listener.stop()
             !armed && recording == null -> listener.start()
         }
     }
@@ -199,12 +210,13 @@ class MainActivity : Activity() {
         val note = if (trial) "Zkouška: Clauda neotevírám, jen bliknu." else null
         val konektor = if (BuildConfig.KONEKTOR_URL.isNotEmpty() && !Konektor.online)
             "Konektor je odpojený: Claude teď hlasitost, tisk ani sken neovládne." else null
-        status.text = listOfNotNull(Session.problem, service, konektor, note, recordNote, listenStatus).joinToString("\n")
+        status.text = listOfNotNull(Session.problem, service, konektor, Meeting.note, note, recordNote, listenStatus).joinToString("\n")
         screenProblem.text = listOfNotNull(Session.problem, service, konektor).joinToString("\n")
         screenProblem.visibility = if (screen != null && screenProblem.text.isNotEmpty()) View.VISIBLE else View.GONE
     }
 
     override fun onPause() {
+        resumed = false
         listener.stop()
         recording?.cancel()
         // Armed survives a pause: the USB dialog pops up on every cable wiggle and would
@@ -220,6 +232,7 @@ class MainActivity : Activity() {
 
     override fun onDestroy() {
         CustomScreen.onChange = null
+        Meeting.onChange = null
         screen?.destroy()
         screenLock?.takeIf { it.isHeld }?.release()
         beeper?.release()
@@ -231,9 +244,13 @@ class MainActivity : Activity() {
     override fun onBackPressed() {}
 
     // The flash is the only sign the word was caught, so let it show before Claude covers it.
-    private fun onWake() {
+    private fun onWake(meeting: Boolean) {
         glow.wake()
         beeper?.startTone(ToneGenerator.TONE_PROP_BEEP, 150)
+        if (meeting && !trial) {
+            MeetingService.start(this)
+            return
+        }
         if (trial) {
             glow.postDelayed(listenAgain, 1_200)
             return
@@ -255,6 +272,25 @@ class MainActivity : Activity() {
             Intent(Intent.ACTION_VIEW, Uri.parse(Config.NEW_CHAT_URL)).setPackage(Config.CLAUDE_PACKAGE)
         else launch
         startActivity(target.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    }
+
+    private fun onMeetingChange() {
+        if (!resumed) return
+        refresh()
+        showCard()
+        updateStatus()
+    }
+
+    // Meeting answers leave the card once it ends: the display faces the room for hours.
+    private fun showCard() {
+        if (Meeting.state == Meeting.State.IDLE) return showLastAnswer(demoAnswer ?: LastAnswer.load(this))
+        val min = (System.currentTimeMillis() - Meeting.startedAt) / 60_000
+        cardTitle.text = if (Meeting.recording) "Porada · nahrávám $min min" else "Porada · píšu shrnutí"
+        val asked = Meeting.question
+        question.visibility = if (asked == null) View.GONE else View.VISIBLE
+        question.text = asked
+        answer.text = Meeting.answer
+            ?: "Ptej se: „${Config.WAKE_LABEL}“ a otázka.\nKonec: „${Config.WAKE_LABEL}, end the meeting“."
     }
 
     private fun showLastAnswer(last: LastAnswer?) {
@@ -304,6 +340,31 @@ class MainActivity : Activity() {
     // adb shell am start -n cz.magiak.asistent/.MainActivity --es ukazka zkouska
     private fun showDemo(intent: Intent) {
         if (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE == 0) return
+        // porada: start or stop without saying it. nanecisto: no keys and no sound (offline English
+        // transcript, canned answers, voice into files); soubor + rychlost play a WAV in instead of the mic.
+        when (intent.getStringExtra("porada")) {
+            "start" -> {
+                listener.stop()
+                MeetingService.start(this, intent.getBooleanExtra("nanecisto", false),
+                    intent.getStringExtra("soubor"), intent.getFloatExtra("rychlost", 1f))
+                return
+            }
+            "stop" -> {
+                MeetingService.stop(this)
+                return
+            }
+            // One call to each service with the keys from local.properties (or a test "klic"), result in logcat.
+            "klice" -> {
+                val key = intent.getStringExtra("klic")
+                Thread({ MeetingService.checkKeys(key) }, "porada-klice").start()
+                return
+            }
+            // What find_meetings would hand Claude for "dotaz", in logcat.
+            "najdi" -> {
+                Log.i(Config.TAG, "Porada: najdi\n" + MeetingArchive.find(this, intent.getStringExtra("dotaz").orEmpty()))
+                return
+            }
+        }
         trial = intent.getStringExtra("ukazka") == "zkouska"
         // Heard words with their confidence are for tuning only; on the desk they were noise.
         findViewById<View>(R.id.heard).visibility = if (trial) View.VISIBLE else View.GONE

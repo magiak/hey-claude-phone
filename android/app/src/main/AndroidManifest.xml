@@ -4,10 +4,16 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
 
     <!-- Android 11+ hides other packages unless declared here. -->
     <queries>
         <package android:name="com.anthropic.claude" />
+        <!-- The phone's voice for meeting answers. -->
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
     </queries>
 
     <application
@@ -43,6 +49,11 @@
             android:screenOrientation="sensorLandscape"
             android:showWhenLocked="true"
             android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen" />
+
+        <service
+            android:name=".meeting.MeetingService"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
 
         <service
             android:name=".ClaudeVoiceService"

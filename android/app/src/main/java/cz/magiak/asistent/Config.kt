@@ -24,6 +24,14 @@ object Config {
     const val WAKE_LABEL = "Hey Claude"
     val DECOY_WORDS = listOf<String>()
     const val MIN_CONFIDENCE = 0.6
+    // Same recording replayed 2026-11-10: his 13 real calls had at most 0.06 s between the words;
+    // the one wake in his talk had 0.75 s, and the meeting words in the grammar lifted it over the bar.
+    const val MAX_WAKE_GAP_S = 0.3
+
+    // Meeting mode, said right after the wake word in one breath: "Hey Claude, record the meeting"
+    // on the dashboard, "Hey Claude, end the meeting" during it. English, the model knows no Czech.
+    val MEETING_START = listOf("record", "the", "meeting")
+    val MEETING_END = listOf("end", "the", "meeting")
 
     // Exact labels read from the Claude app on 2026-11-08 (English UI). Must stay exact:
     // the call screen also has "Mute Claude's voice", which a loose match would take for

@@ -18,7 +18,7 @@ import org.vosk.android.SpeechService
  */
 class WakeWordListener(
     private val context: Context,
-    private val onWake: () -> Unit,
+    private val onWake: (meeting: Boolean) -> Unit,
     private val onVoice: () -> Unit,
     private val onMiss: () -> Unit,
     private val onStatus: (String) -> Unit,
@@ -76,21 +76,18 @@ class WakeWordListener(
     }
 
     private fun check(json: String) {
-        val words = JSONObject(json).optJSONArray("result") ?: return
+        val heard = heard(json) ?: return
         retryMs = FIRST_RETRY_MS
-        val heard = (0 until words.length()).map {
-            val w = words.getJSONObject(it)
-            w.getString("word") to w.getDouble("conf")
-        }
-        val text = heard.joinToString("  ") { (word, conf) -> "$word ${"%.2f".format(conf)}" }
+        val text = heard.joinToString("  ") { "${it.word} ${"%.2f".format(it.conf)}" }
         Log.i(Config.TAG, "Slyším: $text")
         onHeard(text)
-        if (isWake(heard)) {
+        val at = wakeAt(heard)
+        if (at != null) {
             stop()
-            onWake()
-        } else if (heard.any { (word, _) -> word != "[unk]" && word != Config.WAKE_PHRASE.first() }) {
+            onWake(hasCommand(heard, at))
+        } else if (heard.any { it.word in Config.WAKE_PHRASE.drop(1) || it.word in Config.DECOY_WORDS }) {
             // In silence Vosk returns a lone "hey 1.00" every 20 s (seen on the phone 2026-11-08),
-            // so a lone first word is not a near miss.
+            // so a lone first word is not a near miss; nor are the meeting words, they come up in talk.
             onMiss()
         }
     }
@@ -114,22 +111,58 @@ class WakeWordListener(
         retryLater()
     }
 
+    /** A recognized word, times in seconds from the recognizer's start. */
+    data class Heard(val word: String, val conf: Double, val start: Double, val end: Double)
+
     companion object {
         const val SAMPLE_RATE = 16_000f
         private const val FIRST_RETRY_MS = 2_000L
         private const val MAX_RETRY_MS = 60_000L
 
-        fun grammar(): String {
+        /** The dashboard's grammar: the wake word, and the wake word starting a meeting. */
+        fun grammar() = grammarWith(Config.MEETING_START)
+
+        /** The grammar during a meeting: the wake word, and the wake word ending it. */
+        fun meetingGrammar() = grammarWith(Config.MEETING_END)
+
+        private fun grammarWith(command: List<String>): String {
             val phrase = Config.WAKE_PHRASE.joinToString(" ")
-            return JSONArray((listOf(phrase) + Config.WAKE_PHRASE + Config.DECOY_WORDS + "[unk]").distinct()).toString()
+            val phrases = listOf(phrase, "$phrase ${command.joinToString(" ")}")
+            return JSONArray((phrases + Config.WAKE_PHRASE + command + Config.DECOY_WORDS + "[unk]").distinct()).toString()
         }
 
-        // The rule check() applies, shared with the replay of a recording.
-        fun isWake(heard: List<Pair<String, Double>>): Boolean {
-            val n = Config.WAKE_PHRASE.size
-            return (0..heard.size - n).any { i ->
-                (0 until n).all { k -> heard[i + k].first == Config.WAKE_PHRASE[k] && heard[i + k].second >= Config.MIN_CONFIDENCE }
+        /** One Vosk result's words, or null for a result without any. */
+        fun heard(json: String): List<Heard>? {
+            val words = JSONObject(json).optJSONArray("result") ?: return null
+            return (0 until words.length()).map { i ->
+                words.getJSONObject(i).let { Heard(it.getString("word"), it.getDouble("conf"), it.getDouble("start"), it.getDouble("end")) }
             }
+        }
+
+        // The rule check() applies, shared with the replay of a recording and the meeting.
+        fun isWake(heard: List<Heard>) = wakeAt(heard) != null
+
+        /** Index of the wake phrase's first word, or null. */
+        fun wakeAt(heard: List<Heard>): Int? {
+            val n = Config.WAKE_PHRASE.size
+            return (0..heard.size - n).firstOrNull { i ->
+                (0 until n).all { k ->
+                    val w = heard[i + k]
+                    w.word == Config.WAKE_PHRASE[k] && w.conf >= Config.MIN_CONFIDENCE &&
+                        (k == 0 || w.start - heard[i + k - 1].end <= Config.MAX_WAKE_GAP_S)
+                }
+            }
+        }
+
+        /**
+         * True when the wake phrase is followed by its command ("record the meeting" on the dashboard,
+         * "end the meeting" during one), both its first and last word above the bar: Czech talk right
+         * after the wake word lands on short English words now and then.
+         */
+        fun hasCommand(heard: List<Heard>, wakeAt: Int): Boolean {
+            val after = heard.drop(wakeAt + Config.WAKE_PHRASE.size).filter { it.conf >= Config.MIN_CONFIDENCE }.map { it.word }
+            val verb = after.indexOfFirst { it == Config.MEETING_START.first() || it == Config.MEETING_END.first() }
+            return verb >= 0 && Config.MEETING_START.last() in after.drop(verb + 1)
         }
     }
 }

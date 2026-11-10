@@ -17,6 +17,8 @@ import android.widget.RadioGroup
 import android.widget.ScrollView
 import android.widget.Switch
 import android.widget.TextView
+import cz.magiak.asistent.meeting.Meeting
+import cz.magiak.asistent.meeting.MeetingService
 
 class SettingsActivity : Activity() {
 
@@ -84,6 +86,16 @@ class SettingsActivity : Activity() {
             setOnClickListener { openClaudePlain() }
         }, below(32))
         page.addView(label("Na nastavení Clauda nebo přihlášení. Zpátky na hodiny tlačítkem Domů.", 14f, GRAY))
+
+        // The spoken start and end are English phrases nobody has tried with his voice yet.
+        page.addView(Button(this).apply {
+            text = if (Meeting.state == Meeting.State.IDLE) "Nahrát poradu" else "Ukončit poradu"
+            setOnClickListener {
+                if (Meeting.state == Meeting.State.IDLE) MeetingService.start(this@SettingsActivity) else MeetingService.stop(this@SettingsActivity)
+                finish()
+            }
+        }, below(32))
+        page.addView(label("Nebo „${Config.WAKE_LABEL}, record the meeting“ a na konci „${Config.WAKE_LABEL}, end the meeting“.", 14f, GRAY))
 
         page.addView(Button(this).apply {
             text = "Obnovit výchozí"

@@ -10,6 +10,7 @@ import android.view.Display
 import cz.magiak.asistent.Config
 import cz.magiak.asistent.CustomScreen
 import cz.magiak.asistent.R
+import cz.magiak.asistent.meeting.MeetingArchive
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
@@ -104,6 +105,23 @@ class Tools(private val context: Context) {
                 JSONObject(),
             )
         )
+        .put(
+            tool(
+                "find_meetings", "Porady",
+                "Porady nahrané na telefonu: shrnutí s rozhodnutími a úkoly. Bez query vrátí poslední porady, " +
+                    "s query ty, kde to slovo zaznělo, i s řádky přepisu. Hledá přesný text, zkus i jiný tvar slova. " +
+                    "Odpovídej z toho stručně, bez komentování hledání.",
+                JSONObject().put("query", JSONObject().put("type", "string")),
+            )
+        )
+        .put(
+            tool(
+                "read_meeting", "Přepis porady",
+                "Celý přepis jedné porady podle id z find_meetings. Je dlouhý, volej ho jen, když shrnutí nestačí.",
+                JSONObject().put("id", JSONObject().put("type", "string")),
+                required = listOf("id"),
+            )
+        )
 
     /** One JSON-RPC tools/call in, its JSON-RPC reply out. Failures go back to Claude as text. */
     fun handle(text: String): String {
@@ -141,6 +159,9 @@ class Tools(private val context: Context) {
             CustomScreen.reset(context)
             textResult("Hodiny se vrátí po konci hovoru. Uživateli řekni jen „Hotovo“.")
         }
+        "find_meetings" -> textResult(MeetingArchive.find(context, args.optString("query")))
+        "read_meeting" -> MeetingArchive.transcript(context, args.getString("id"))?.let { textResult(it) }
+            ?: textResult("Poradu ${args.getString("id")} neznám, vezmi id z find_meetings.", error = true)
         else -> textResult("Neznámý nástroj $name.", error = true)
     }
 
