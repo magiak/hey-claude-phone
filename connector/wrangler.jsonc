@@ -4,8 +4,11 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-10-01",
   "durable_objects": {
-    "bindings": [{ "name": "TELEFON", "class_name": "Telefon" }]
+    "bindings": [{ "name": "PHONE", "class_name": "Phone" }]
   },
   // The Free plan only allows SQLite-backed Durable Objects.
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Telefon"] }]
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["Telefon"] },
+    { "tag": "v2", "renamed_classes": [{ "from": "Telefon", "to": "Phone" }] }
+  ]
 }

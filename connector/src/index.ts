@@ -1,7 +1,7 @@
 import { DurableObject } from "cloudflare:workers";
 
 interface Env {
-  TELEFON: DurableObjectNamespace<Telefon>;
+  PHONE: DurableObjectNamespace<Phone>;
   SECRET: string;
 }
 
@@ -18,11 +18,11 @@ interface ToolResult {
 const PHONE_TIMEOUT_MS = 55_000;
 
 const INSTRUCTIONS =
-  "Domácí asistent: telefon s aplikací Claude a tiskárna na domácí Wi-Fi. " +
-  "Nástroje mění hlasitost telefonu, tisknou a skenují. Mluv česky a stručně.";
+  "Home assistant: a phone running the Claude app and a printer on the home Wi-Fi. " +
+  "The tools change the phone's volume, print and scan. Keep answers brief.";
 
 /** One phone, one WebSocket; the Worker only relays tool calls to it. */
-export class Telefon extends DurableObject<Env> {
+export class Phone extends DurableObject<Env> {
   private pending = new Map<string, (reply: ToolResult) => void>();
 
   constructor(ctx: DurableObjectState, env: Env) {
@@ -47,12 +47,12 @@ export class Telefon extends DurableObject<Env> {
   async callTool(params: unknown): Promise<ToolResult> {
     const sockets = this.ctx.getWebSockets();
     const phone = sockets[sockets.length - 1];
-    if (!phone) return toolError("Telefon teď není připojený k internetu, nástroj nejde použít.");
+    if (!phone) return toolError("The phone is not connected to the internet right now, the tool cannot be used.");
     const id = crypto.randomUUID();
     return new Promise<ToolResult>((resolve) => {
       const timer = setTimeout(() => {
         this.pending.delete(id);
-        resolve(toolError(`Telefon neodpověděl do ${PHONE_TIMEOUT_MS / 1000} s.`));
+        resolve(toolError(`The phone did not answer within ${PHONE_TIMEOUT_MS / 1000} s.`));
       }, PHONE_TIMEOUT_MS);
       this.pending.set(id, (reply) => {
         clearTimeout(timer);
@@ -93,15 +93,16 @@ export default {
       : null;
     // A wrong key must look like nothing is here: a 401 would send Claude into OAuth discovery.
     if (!key || !env.SECRET || !sameSecret(key, env.SECRET)) return notFound();
-    const telefon = env.TELEFON.get(env.TELEFON.idFromName("telefon"));
-    if (kind === "phone") return telefon.fetch(request);
-    if (kind === "mcp") return mcp(request, telefon);
+    // "telefon" is the stored object id; renaming it would orphan the saved tool list.
+    const phone = env.PHONE.get(env.PHONE.idFromName("telefon"));
+    if (kind === "phone") return phone.fetch(request);
+    if (kind === "mcp") return mcp(request, phone);
     return notFound();
   },
 } satisfies ExportedHandler<Env>;
 
 // Streamable HTTP with plain JSON replies; no SSE stream, no sessions.
-async function mcp(request: Request, telefon: DurableObjectStub<Telefon>): Promise<Response> {
+async function mcp(request: Request, phone: DurableObjectStub<Phone>): Promise<Response> {
   if (request.method !== "POST") return new Response(null, { status: 405, headers: { Allow: "POST" } });
   let body: any;
   try {
@@ -112,14 +113,14 @@ async function mcp(request: Request, telefon: DurableObjectStub<Telefon>): Promi
   const messages: Json[] = Array.isArray(body) ? body : [body];
   const replies: Json[] = [];
   for (const message of messages) {
-    const answer = await handle(message, telefon);
+    const answer = await handle(message, phone);
     if (answer) replies.push(answer);
   }
   if (!replies.length) return new Response(null, { status: 202 });
   return reply(Array.isArray(body) ? replies : replies[0]);
 }
 
-async function handle(message: Json, telefon: DurableObjectStub<Telefon>): Promise<Json | null> {
+async function handle(message: Json, phone: DurableObjectStub<Phone>): Promise<Json | null> {
   // Notifications and responses need no answer.
   if (typeof message?.method !== "string" || message.id === undefined) return null;
   const result = (value: unknown) => ({ jsonrpc: "2.0", id: message.id, result: value });
@@ -134,9 +135,9 @@ async function handle(message: Json, telefon: DurableObjectStub<Telefon>): Promi
     case "ping":
       return result({});
     case "tools/list":
-      return result({ tools: await telefon.listTools() });
+      return result({ tools: await phone.listTools() });
     case "tools/call":
-      return result(await telefon.callTool(message.params));
+      return result(await phone.callTool(message.params));
     default:
       return { jsonrpc: "2.0", id: message.id, error: { code: -32601, message: "Method not found" } };
   }
