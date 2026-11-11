@@ -1,0 +1,11 @@
+# Holder versions
+
+Every printed version has the git tag `holder-vN`. The model from it: `git checkout holder-vN -- holder/`. Versions v1–v4 lived in `drzak/`, so restore them with `git checkout holder-vN -- drzak/`.
+
+| Version | Date | What changed | Print and result |
+|---|---|---|---|
+| v1 | 2026-11-08 | Body and cover joined by 4 screws, ends 3.5 mm shorter than the very first print. Stand with a 15° tilt. | White PLA. The phone fits, a gap of about 0.5 mm remained behind the connector. |
+| v2 | 2026-11-10 | New cover: cable out the back, slots for sound. Rail with a folding leg (30° tilt), 6 screws. Body from v1. | White PLA. Works, but the leg is screwed on, it isn't part of the frame. |
+| v3 | 2026-11-10 | New front: instead of dots, three vertical slots with a chamfered edge at each end (more open area than dots, preview `preview_front.png`), the inside ends 4 mm shorter than the very first print, the same on both. Same outline, the cover from v2 fits. | Black PLA, printed 2026-11-10: **failed, looks terrible** (his words). The slots are 3 mm wide on the front, because the chamfer starts at full width, and the connector is visible through them. Only 0.4 mm of front remained between them, which is less than one nozzle line, and it printed ugly. Claude's design mistake, the print check doesn't watch thin spots. The dots from v1 were better. |
+| v4 | 2026-11-11 | New front and cover: back to round Ø2 dots from v1 without a chamfer (ribs 2 mm), front wall 1.2 mm instead of 2 (Live Display has 1.0), the whole box 5 mm shorter than the very first print at each end (178.3 mm), wall straight without a step. Because of the thinner front the window has a narrower chamfer (1.0 instead of 1.6). The cover from v2 doesn't fit, the rail and leg from v2 do. The wall keyholes are spaced 164.9 mm instead of 166.4. The body is 0.8 mm thinner, it would sit loosely in the old stand from v1. Plate 3, front and cover: 2 h, 61 g. | Black PLA, printed 2026-11-11: "otherwise it's fine". The keyholes are almost at the edge of the cover (0.2 mm left, Claude only checked the body wall). He won't print it again. |
+| v5 | 2026-11-11 | Model only: the keyholes in the cover moved inward to a round spacing of 162 mm, 1.65 mm from the cover edge. Body unchanged. | Not printed. |
