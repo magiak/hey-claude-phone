@@ -1,9 +1,9 @@
-"""Minimální test bez aplikace: otevře aplikaci v telefonu a najde (a případně stiskne) tlačítko hlasového režimu.
+"""Minimal test without the app: opens an app on the phone and finds (and optionally taps) the voice mode button.
 
-    python adb_test.py                  # jen vypíše, co je to za telefon
-    python adb_test.py --pruzkum        # otevře Clauda a vypíše tlačítka na obrazovce
-    python adb_test.py --klikni         # navíc klepne na tlačítko hlasového režimu
-    python adb_test.py --pruzkum --balicek com.android.settings   # nanečisto na Nastavení
+    python adb_test.py                  # only prints which phone this is
+    python adb_test.py --explore        # opens Claude and lists the buttons on screen
+    python adb_test.py --tap            # also taps the voice mode button
+    python adb_test.py --explore --package com.android.settings   # dry run on Settings
 """
 
 import argparse
@@ -17,100 +17,100 @@ import time
 import xml.etree.ElementTree as ET
 
 CLAUDE = "com.anthropic.claude"
-# Shodné s Config.VOICE_BUTTON v aplikaci.
-HLAS = re.compile(r"^(voice mode|hlasový režim)$", re.I)
+# Same as Config.VOICE_BUTTON in the app; the Czech alternative matches the Czech UI.
+VOICE = re.compile(r"^(voice mode|hlasový režim)$", re.I)
 
 
-def najdi_adb() -> str:
+def find_adb() -> str:
     sdk = os.path.join(os.environ.get("LOCALAPPDATA", ""), "Android", "Sdk", "platform-tools", "adb.exe")
     return shutil.which("adb") or sdk
 
 
-ADB = najdi_adb()
+ADB = find_adb()
 
 
 def adb(*args: str, check: bool = True) -> str:
     r = subprocess.run([ADB, *args], capture_output=True, text=True, encoding="utf-8", errors="replace")
     if check and r.returncode != 0:
-        sys.exit(f"adb {' '.join(args)} selhalo: {r.stderr.strip() or r.stdout.strip()}")
+        sys.exit(f"adb {' '.join(args)} failed: {r.stderr.strip() or r.stdout.strip()}")
     return r.stdout.strip()
 
 
 def info() -> None:
-    zarizeni = [l for l in adb("devices").splitlines()[1:] if l.strip().endswith("device")]
-    if not zarizeni:
-        sys.exit("Není připojený žádný telefon (nebo nepovolil ladění přes USB).")
-    if len(zarizeni) > 1:
-        sys.exit("Připojených telefonů je víc, nech připojený jen jeden.")
+    devices = [l for l in adb("devices").splitlines()[1:] if l.strip().endswith("device")]
+    if not devices:
+        sys.exit("No phone connected (or USB debugging was not allowed).")
+    if len(devices) > 1:
+        sys.exit("More than one phone connected, leave only one connected.")
     p = lambda k: adb("shell", "getprop", k)
     sdk = int(p("ro.build.version.sdk") or 0)
-    baterie = adb("shell", "dumpsys", "battery")
-    uroven = re.search(r"level: (\d+)", baterie)
-    zdravi = re.search(r"health: (\d+)", baterie)
-    zdravi_txt = {"2": "dobrá", "3": "přehřátá", "4": "mrtvá", "5": "přepětí", "7": "studená"}.get(zdravi.group(1) if zdravi else "", "neznámá")
-    print(f"Telefon:   {p('ro.product.manufacturer')} {p('ro.product.model')}")
+    battery = adb("shell", "dumpsys", "battery")
+    level = re.search(r"level: (\d+)", battery)
+    health = re.search(r"health: (\d+)", battery)
+    health_txt = {"2": "good", "3": "overheated", "4": "dead", "5": "over voltage", "7": "cold"}.get(health.group(1) if health else "", "unknown")
+    print(f"Phone:     {p('ro.product.manufacturer')} {p('ro.product.model')}")
     print(f"Android:   {p('ro.build.version.release')} (API {sdk})")
-    print(f"Baterie:   {uroven.group(1) if uroven else '?'} %, stav podle systému: {zdravi_txt}")
+    print(f"Battery:   {level.group(1) if level else '?'} %, health per system: {health_txt}")
     claude = adb("shell", "pm", "path", CLAUDE, check=False)
-    print(f"Claude:    {'nainstalovaný' if claude else 'není nainstalovaný'}")
+    print(f"Claude:    {'installed' if claude else 'not installed'}")
     if sdk < 26:
-        print("POZOR: Android starší než 8, aplikace Asistent ani Claude na něm nepoběží.")
+        print("WARNING: Android older than 8, neither the Assistant app nor Claude will run on it.")
 
 
-def pruzkum(balicek: str, klikni: bool) -> None:
-    if not adb("shell", "pm", "path", balicek, check=False):
-        sys.exit(f"Aplikace {balicek} v telefonu není.")
+def explore(package: str, tap: bool) -> None:
+    if not adb("shell", "pm", "path", package, check=False):
+        sys.exit(f"App {package} is not on the phone.")
     adb("shell", "input", "keyevent", "KEYCODE_WAKEUP")
-    zamek = adb("shell", "dumpsys", "window", "policy")
-    if re.search(r"showing=true", zamek) and re.search(r"secure=true", zamek):
-        sys.exit("Telefon je zamčený. Odemkni ho a spusť test znovu.")
-    adb("shell", "monkey", "-p", balicek, "-c", "android.intent.category.LAUNCHER", "1")
+    lock = adb("shell", "dumpsys", "window", "policy")
+    if re.search(r"showing=true", lock) and re.search(r"secure=true", lock):
+        sys.exit("The phone is locked. Unlock it and run the test again.")
+    adb("shell", "monkey", "-p", package, "-c", "android.intent.category.LAUNCHER", "1")
     time.sleep(4)
     adb("shell", "uiautomator", "dump", "/sdcard/window_dump.xml")
     with tempfile.TemporaryDirectory() as d:
-        cil = os.path.join(d, "window_dump.xml")
-        adb("pull", "/sdcard/window_dump.xml", cil)
-        strom = ET.parse(cil)
+        target = os.path.join(d, "window_dump.xml")
+        adb("pull", "/sdcard/window_dump.xml", target)
+        tree = ET.parse(target)
 
-    popredi = {u.get("package") for u in strom.iter("node")}
-    if balicek not in popredi:
-        print(f"Na obrazovce není {balicek}, ale {', '.join(sorted(popredi))}. Je telefon odemčený?")
+    foreground = {u.get("package") for u in tree.iter("node")}
+    if package not in foreground:
+        print(f"{package} is not on screen, but {', '.join(sorted(foreground))} is. Is the phone unlocked?")
 
-    kandidati = []
-    print("\nPrvky s popiskem (popis | text | id | klikací | střed):")
-    for u in strom.iter("node"):
-        popis, text, rid = u.get("content-desc", ""), u.get("text", ""), u.get("resource-id", "")
-        stitek = " | ".join(x for x in (popis, text, rid) if x)
-        if not stitek:
+    candidates = []
+    print("\nElements with a label (description | text | id | clickable | centre):")
+    for u in tree.iter("node"):
+        desc, text, rid = u.get("content-desc", ""), u.get("text", ""), u.get("resource-id", "")
+        label = " | ".join(x for x in (desc, text, rid) if x)
+        if not label:
             continue
         x1, y1, x2, y2 = map(int, re.findall(r"\d+", u.get("bounds", "[0,0][0,0]")))
-        stred = ((x1 + x2) // 2, (y1 + y2) // 2)
-        hlas = any(HLAS.match(x.strip()) for x in (popis, text) if x)
-        if hlas:
-            kandidati.append((stitek, stred))
-        print(f"{'>>' if hlas else '  '} {stitek} | {u.get('clickable')} | {stred}")
+        centre = ((x1 + x2) // 2, (y1 + y2) // 2)
+        voice = any(VOICE.match(x.strip()) for x in (desc, text) if x)
+        if voice:
+            candidates.append((label, centre))
+        print(f"{'>>' if voice else '  '} {label} | {u.get('clickable')} | {centre}")
 
-    if not kandidati:
-        print("\nTlačítko hlasového režimu se podle popisku nenašlo. Pošli Claudovi výpis výše.")
+    if not candidates:
+        print("\nVoice mode button not found by label. Send the output above to Claude.")
         return
-    stitek, (x, y) = kandidati[0]
-    print(f"\nTlačítko hlasového režimu: {stitek} na {x},{y}")
-    if klikni:
+    label, (x, y) = candidates[0]
+    print(f"\nVoice mode button: {label} at {x},{y}")
+    if tap:
         adb("shell", "input", "tap", str(x), str(y))
-        print("Klepnuto. Podívej se na telefon, jestli běží hlasový režim.")
+        print("Tapped. Check the phone to see whether voice mode is running.")
 
 
 def main() -> None:
     a = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    a.add_argument("--pruzkum", action="store_true", help="otevřít aplikaci a vypsat tlačítka")
-    a.add_argument("--klikni", action="store_true", help="klepnout na nalezené tlačítko hlasového režimu")
-    a.add_argument("--balicek", default=CLAUDE, help=f"aplikace k otevření (výchozí {CLAUDE})")
+    a.add_argument("--explore", action="store_true", help="open the app and list the buttons")
+    a.add_argument("--tap", action="store_true", help="tap the voice mode button if found")
+    a.add_argument("--package", default=CLAUDE, help=f"app to open (default {CLAUDE})")
     arg = a.parse_args()
     sys.stdout.reconfigure(encoding="utf-8")
     sys.stderr.reconfigure(encoding="utf-8")
     info()
-    if arg.pruzkum or arg.klikni:
-        pruzkum(arg.balicek, arg.klikni)
+    if arg.explore or arg.tap:
+        explore(arg.package, arg.tap)
 
 
 if __name__ == "__main__":

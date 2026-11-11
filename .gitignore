@@ -8,4 +8,4 @@ android/vosk-assets/
 window_dump.xml
 __pycache__/
 # Recordings of your voice stay on your PC.
-ladeni/nahravky/
+tuning/recordings/
