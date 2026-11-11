@@ -1,110 +1,114 @@
-# Hey Claude na starém telefonu
+# Hey Claude on an old phone
 
-Starý Android telefon jako hlasový asistent na zeď nebo na stůl. Ukazuje hodiny a poslední odpověď Clauda. Řekneš „Hey Claude“ a telefon otevře aplikaci Claude a sám zapne hlasový režim.
+An old Android phone as a voice assistant for the wall or a desk. It shows a clock and Claude's last answer. Say "Hey Claude" and the phone opens the Claude app and turns on voice mode by itself.
 
-Neoficiální projekt, s Anthropic nesouvisí. Spoléhá na tlačítko „Voice mode“ v aplikaci Claude: když ho Claude přejmenuje nebo schová, stačí upravit `VOICE_BUTTON` v `Config.kt`.
+Unofficial project, not affiliated with Anthropic. It relies on the "Voice mode" button in the Claude app: if Claude renames or hides it, adjust `VOICE_BUTTON` in `Config.kt`.
 
-![Displej s poslední odpovědí](nahledy/obrazovka-odpoved.png)
+The app's own texts are localized: English by default, Czech when the phone language is Czech.
 
-## Jak to funguje
+![Display with the last answer](screenshots/answer.png)
 
-1. **Budicí slovo offline.** [Vosk](https://alphacephei.com/vosk/) s malým anglickým modelem smí rozpoznat jen „hey“ a „claude“, zvuk z telefonu nikam neodchází. Okraj displeje svítí oranžově, když někdo mluví, zeleně na „Hey Claude“ a červeně, když slyšel jen „Claude“ nebo si nebyl jistý.
-2. **Hlasový režim.** Asistent pustí mikrofon, otevře Clauda v nové konverzaci (odkaz `https://claude.ai/new`) a služba přístupnosti klepne na „Voice mode“. Tlačítko hledá podle názvu, takže funguje na výšku i na šířku. Klepnutí na hodiny dělá totéž.
-3. **Návrat na hodiny.** Když Claude 15 sekund nemluví a v chatu nepřibude text (nejdéle po 15 minutách), služba ho ukončí, přečte z chatu poslední otázku a odpověď a nechá je na displeji 12 hodin. Uložené jsou jen v telefonu.
-4. **Nastavení.** Ozubené kolečko vpravo nahoře: nová nebo poslední konverzace, ticho 15 s, 30 s nebo 1 min světlý nebo tmavý vzhled (světlý k bílému držáku, tmavý k černému) a tlačítko, které otevře Clauda bez hovoru (na jeho nastavení nebo přihlášení).
+## How it works
 
-## Hlasitost, tisk a sken z hovoru
+1. **Offline wake word.** [Vosk](https://alphacephei.com/vosk/) with a small English model is only allowed to recognize "hey" and "claude", so no audio leaves the phone. The display edge glows orange while someone is speaking, green on "Hey Claude" and red when it heard only "Claude" or wasn't sure.
+2. **Voice mode.** The assistant releases the microphone, opens Claude in a new conversation (link `https://claude.ai/new`) and the accessibility service taps "Voice mode". It finds the button by its name, so it works in portrait and landscape. Tapping the clock does the same.
+3. **Back to the clock.** When Claude is silent for 15 seconds and no new text appears in the chat (after 15 minutes at the latest), the service ends the call, reads the last question and answer from the chat and keeps them on the display for 12 hours. They are stored only on the phone.
+4. **Settings.** Gear icon in the top right: new or last conversation, silence timeout 15 s, 30 s or 1 min, light or dark theme (light for the white holder, dark for the black one), and a button that opens Claude without a call (for its settings or sign-in).
 
-Aplikace Claude neumí volat lokální MCP servery, jen konektory s veřejnou adresou. Asistent proto může být MCP serverem sám: drží spojení s malým průchodem na Cloudflare a Claude přes něj v hovoru mění hlasitost telefonu. Tisk a sken na tiskárně v Wi-Fi jsou napsané, na skutečné tiskárně zatím neověřené. Přidat jde jakýkoliv další nástroj. Je to volitelné, nasazení a nastavení konektoru popisuje [`konektor/README.md`](konektor/README.md).
+## Volume, printing and scanning from a call
 
-## Vlastní obrazovka hlasem
+The Claude app can't call local MCP servers, only connectors with a public address. So the assistant can be an MCP server itself: it keeps a connection to a small relay on Cloudflare and Claude changes the phone's volume through it during a call. Printing and scanning on a Wi-Fi printer are written but not yet verified on a real printer. Any other tool can be added. It's optional; deployment and connector setup are described in [`connector/README.md`](connector/README.md).
 
-S konektorem si domovskou obrazovku navrhneš v hovoru: „dej mi tam velké hodiny a cenu bitcoinu“. Claude napíše stránku, telefon si ji uloží a ukazuje místo hodin, dokud neřekneš jinou nebo „vrať hodiny“. Ukáže se po konci hovoru. Veřejná data (kurzy, ceny akcií) stahuje telefon za stránku každou minutu, takže zůstanou živá. Data z ostatních konektorů na claude.ai telefon nedostane a zůstanou jen jako stav z chvíle hovoru. Funguje i z hlasového hovoru. Claude stránku jen upravuje: zapsat ji smí, až když si přečetl současnou, a místo původních hodin dostane jejich kopii jako stránku (`res/raw/hodiny.html`). Úplně novou napíše, jen když o ni výslovně řekneš.
+## Custom screen by voice
 
-Stránku jde vyzkoušet i bez Clauda:
+With the connector you design the home screen during a call: "put a big clock and the bitcoin price there". Claude writes a page, the phone stores it and shows it instead of the clock until you ask for another one or say "bring back the clock". It appears after the call ends. Public data (exchange rates, stock prices) is fetched by the phone behind the page every minute, so it stays live. Data from other connectors on claude.ai doesn't reach the phone and stays as a snapshot from the moment of the call. It works from a voice call too. Claude only edits the page: it may write it only after reading the current one, and instead of the original clock it gets a copy of it as a page (`res/raw/clock.html`). It writes a completely new one only when you explicitly ask.
 
-```bash
-adb push stranka.html /sdcard/Android/data/cz.magiak.asistent/files/obrazovka.html
-adb shell am start -n cz.magiak.asistent/.MainActivity --es ukazka obrazovka
-```
-
-Zpátky na hodiny vede `--es ukazka hodiny`. Ve stránce je `await asistent.json(url)` a `await asistent.text(url)` (stahuje telefon, bez omezení CORS) a `asistent.lastAnswer()`.
-
-## Porada
-
-„Hey Claude, record the meeting“ (nebo tlačítko v nastavení) spustí nahrávání porady. Asistent mlčí a celou poradu nahrává v telefonu. Zhruba každé 2 až 3 minuty pošle kousek, uříznutý v pauze, na přepis do [ElevenLabs Scribe v2](https://elevenlabs.io/docs/capabilities/speech-to-text) s rozlišením mluvčích. „Hey Claude“ a otázka: telefon přepíše zbytek, pošle celý přepis s otázkou Claudovi přes API a krátkou odpověď přečte hlasem telefonu. „Hey Claude, end the meeting“ poradu ukončí a Claude napíše shrnutí s rozhodnutími a úkoly.
-
-Přepis a shrnutí jsou v telefonu v `porady/<datum>/` vedle nahrávky. V hovoru je najde nástroj konektoru „Porady“: „co jsme rozhodli na poslední poradě?“.
-
-Potřebuje dva klíče v `android/local.properties`: `elevenlabs.key` a `anthropic.key` (klíč z console.anthropic.com, ne předplatné aplikace). Zvuk porady jde do ElevenLabs a přepis do Anthropic, takže na cizí poradě se zeptej toho, kdo ji vede.
-
-Klíče ověříš jedním voláním každé služby, výsledek je v `adb logcat -s Asistent`:
+You can try a page without Claude:
 
 ```bash
-adb shell am start -n cz.magiak.asistent/.MainActivity --es porada klice
+adb push page.html /sdcard/Android/data/cz.magiak.asistent/files/screen.html
+adb shell am start -n cz.magiak.asistent/.MainActivity --es demo screen
 ```
 
-Bez klíčů a bez zvuku jde celá porada vyzkoušet na nahrávce (16 kHz mono WAV, přepis offline anglicky, odpovědi zkušební):
+`--es demo clock` brings back the clock. The page has `await asistent.json(url)` and `await asistent.text(url)` (fetched by the phone, no CORS restrictions) and `asistent.lastAnswer()`.
+
+## Meeting
+
+"Hey Claude, record the meeting" (or the button in settings) starts recording a meeting. The assistant stays silent and records the whole meeting on the phone. Roughly every 2 to 3 minutes it sends a chunk, cut at a pause, to [ElevenLabs Scribe v2](https://elevenlabs.io/docs/capabilities/speech-to-text) for transcription with speaker labels. "Hey Claude" and a question: the phone transcribes the rest, sends the whole transcript with the question to Claude through the API and reads a short answer in the phone's voice. "Hey Claude, end the meeting" ends the meeting and Claude writes a summary with decisions and tasks.
+
+The meeting is summarized in the phone's language, and the spoken voice uses it too.
+
+The transcript and summary are on the phone in `meetings/<date>/` next to the recording. During a call the connector's "Meetings" tool finds them: "what did we decide at the last meeting?".
+
+It needs two keys in `android/local.properties`: `elevenlabs.key` and `anthropic.key` (a key from console.anthropic.com, not the Claude app subscription). Meeting audio goes to ElevenLabs and the transcript to Anthropic, so at someone else's meeting ask the person who runs it.
+
+You can check the keys with one call to each service, the result is in `adb logcat -s Assistant`:
 
 ```bash
-adb push porada.wav /sdcard/Android/data/cz.magiak.asistent/files/porada.wav
-adb shell am start -n cz.magiak.asistent/.MainActivity --es porada start --ez nanecisto true --es soubor /sdcard/Android/data/cz.magiak.asistent/files/porada.wav --ef rychlost 2
+adb shell am start -n cz.magiak.asistent/.MainActivity --es meeting keys
 ```
 
-## Co je potřeba
+Without keys and without audio, the whole meeting can be tried on a recording (16 kHz mono WAV, offline English transcription, trial answers):
 
-- Telefon s Androidem 8 nebo novějším a Obchodem Play, trvale v nabíječce. Ověřeno na ASUS ZenFone 5Z s Androidem 10.
-- Nenafouklá baterie. Když to telefon umí, zapni omezení nabíjení (Pixel 6a a novější 80 %, Samsung 85 %).
-- Nejméně starostí dá Pixel. ASUS, Xiaomi, Huawei a další chtějí Asistenta povolit v automatickém spouštění, jinak služba přístupnosti po restartu neběží.
-- Držák je jen pro ZenFone 5Z. Pro jiný telefon uprav rozměry nahoře v `drzak/drzak.py`.
-- Přihlášená aplikace Claude. Ověřeno s anglickým rozhraním.
-- Na sestavení Android SDK a JDK 17. Model Vosk si sestavení stáhne samo.
-- Pro nástroje v hovoru navíc Node.js a účet na Cloudflare (stačí Free plán).
-- Pro porady klíč k ElevenLabs a k Anthropic API.
+```bash
+adb push meeting.wav /sdcard/Android/data/cz.magiak.asistent/files/meeting.wav
+adb shell am start -n cz.magiak.asistent/.MainActivity --es meeting start --ez dry_run true --es file /sdcard/Android/data/cz.magiak.asistent/files/meeting.wav --ef speed 2
+```
 
-## Instalace
+## Requirements
 
-Telefon připoj přes USB se zapnutým laděním USB:
+- A phone with Android 8 or newer and the Play Store, permanently on a charger. Verified on an ASUS ZenFone 5Z with Android 10.
+- A battery that isn't swollen. If the phone supports it, turn on charge limiting (Pixel 6a and newer 80 %, Samsung 85 %).
+- A Pixel gives the least trouble. ASUS, Xiaomi, Huawei and others need the Assistant allowed in auto-start, otherwise the accessibility service doesn't run after a restart.
+- The holder is only for the ZenFone 5Z. For another phone, change the dimensions at the top of `holder/holder.py`.
+- A signed-in Claude app. Verified with the English interface.
+- To build: Android SDK and JDK 17. The build downloads the Vosk model itself.
+- For tools in a call, also Node.js and a Cloudflare account (the Free plan is enough).
+- For meetings, a key for ElevenLabs and for the Anthropic API.
+
+## Installation
+
+Connect the phone over USB with USB debugging on:
 
 ```bash
 cd android
 ./gradlew installDebug
 ```
 
-Po instalaci aplikaci spouštěj jen `adb shell am start -n cz.magiak.asistent/.MainActivity`. `am force-stop` vypne službu přístupnosti. Když ji `adb shell dumpsys accessibility` neukazuje mezi „Bound services“, instalace ji ukončila uprostřed spouštění: nainstaluj znovu.
+After installing, start the app only with `adb shell am start -n cz.magiak.asistent/.MainActivity`. `am force-stop` turns off the accessibility service. If `adb shell dumpsys accessibility` doesn't list it under "Bound services", the installation killed it mid-start: install again.
 
-## Nastavení telefonu
+## Phone setup
 
-1. **Mikrofon:** při prvním spuštění ho Asistentovi povol.
-2. **Služba přístupnosti:** podrž prst na hodinách, otevře se nastavení přístupnosti. Klepni na Asistent, zapni ho a potvrď.
-3. **Automatické spouštění:** na ASUSu v aplikaci Auto-start Manager povol Asistenta (jiní výrobci mívají podobné nastavení). Bez toho služba po restartu nebo aktualizaci zůstane v nastavení zapnutá, ale neběží. Displej to pak napíše.
-4. **Domovská obrazovka:** stiskni Domů, vyber Asistent a „Vždy“. Po restartu naběhne rovnou do hodin.
-5. **Zámek obrazovky** raději vypni: hodiny se přes zámek ukážou, Claude ne.
+1. **Microphone:** allow it for the Assistant on first launch.
+2. **Accessibility service:** long-press the clock, the accessibility settings open. Tap Assistant, turn it on and confirm.
+3. **Auto-start:** on an ASUS, allow the Assistant in the Auto-start Manager app (other vendors have a similar setting). Without it the service stays enabled in settings after a restart or update but doesn't run. The display then says so.
+4. **Home screen:** press Home, choose Assistant and "Always". After a restart it goes straight to the clock.
+5. **Screen lock** is better turned off: the clock shows over the lock, Claude doesn't.
 
-Displej drží rozsvícený aplikace sama, od 22 do 7 hodin ztlumí jas. Hlasitost médií řídí hlas Clauda i pípnutí po „Hey Claude“.
+The app keeps the display on itself and dims the brightness from 22:00 to 7:00. Media volume controls both Claude's voice and the beep after "Hey Claude".
 
-## Ladění
+## Tuning
 
-Fráze, práh jistoty, barvy záře, pípnutí a noční jas jsou v [`Config.kt`](android/app/src/main/java/cz/magiak/asistent/Config.kt). Vzhled obrazovky je v [`activity_main.xml`](android/app/src/main/res/layout/activity_main.xml), okraje podle okénka držáku v [`dimens.xml`](android/app/src/main/res/values/dimens.xml).
+Phrases, confidence threshold, glow colours, beeps and night brightness are in [`Config.kt`](android/app/src/main/java/cz/magiak/asistent/Config.kt). The screen look is in [`activity_main.xml`](android/app/src/main/res/layout/activity_main.xml), the margins matching the holder window in [`dimens.xml`](android/app/src/main/res/values/dimens.xml).
 
-Naladit budicí slovo na svůj hlas jde z jedné nahrávky. Spusť nahrávání, klepni na displej a minutu a půl dělej, co říká:
-
-```bash
-adb shell am start -n cz.magiak.asistent/.MainActivity --es ukazka nahraj
-```
-
-Pak v počítači stáhni nahrávku a porovnej prahy (nahrávky zůstávají v `ladeni/nahravky/`, do gitu nejdou):
+You can tune the wake word to your voice from one recording. Start recording, tap the display and for a minute and a half do what it says:
 
 ```bash
-uv run ladeni/vyhodnot.py --stahni
+adb shell am start -n cz.magiak.asistent/.MainActivity --es demo record
 ```
 
-Když se tlačítko hlasového režimu nenajde, `python adb_test.py --pruzkum` otevře Clauda a vypíše všechna tlačítka na obrazovce.
+Then on the computer pull the recording and compare thresholds (recordings stay in `tuning/recordings/`, they don't go to git):
 
-## Držák
+```bash
+uv run tuning/evaluate.py --pull
+```
 
-`drzak/` je 3D tisknutelný držák pro ASUS ZenFone 5Z na šířku, na zeď i na stůl. `asistent_drzak.3mf` je projekt pro Bambu Studio, `stl/` jsou samostatné díly a `drzak.py` je generátor (rozměry telefonu nahoře v souboru, potřebuje `numpy trimesh manifold3d matplotlib`). Tělo a víčko spojují 4 šroubky M2,5×10 se zápustnou hlavou. Na stůl se pod horní dva šroubky přišroubuje lišta se sklopnou nožkou, nožku drží další 2 šroubky M2,5×10 z boku. Na zeď se lišta odšroubuje a víčko visí na dvou šroubech. Kabel vychází zezadu u spodní hrany, potřebuješ úhlový kabel USB-C.
+If the voice mode button isn't found, `python adb_test.py --explore` opens Claude and lists all buttons on the screen.
 
-## Licence
+## Holder
 
-MIT. Model Vosk se stahuje zvlášť pod vlastní licencí.
+`holder/` is a 3D-printable holder for the ASUS ZenFone 5Z in landscape, for the wall and for a desk. `holder.3mf` is a Bambu Studio project, `stl/` holds the separate parts and `holder.py` is the generator (phone dimensions at the top of the file, needs `numpy trimesh manifold3d matplotlib`). The body and cover are joined by 4 M2.5×10 countersunk screws. For desk use, a rail with a folding leg is screwed on under the top two screws, and the leg is held by another 2 M2.5×10 screws from the side. For the wall, the rail is unscrewed and the cover hangs on two screws. The cable exits at the back near the bottom edge, you need an angled USB-C cable.
+
+## License
+
+MIT. The Vosk model is downloaded separately under its own license.
