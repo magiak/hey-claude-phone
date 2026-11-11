@@ -37,11 +37,9 @@ BACK_GAP = 1.5         # za telefonem: hrbol kamery se nesmí opřít o víčko
 PRESS_CLR = 0.3        # žebra víčka tlačí telefon k čelu s touhle vůlí
 # Za pravým koncem úhlový konektor USB-C. Stěna ho drží zasunutý: v prvním tisku (16 mm)
 # za ním zbyly ~4 mm a kabel vypadával (řekl 2026-11-08). Tělo z 2026-11-08 má o 3,5 mm míň a mezera zůstala.
-# Víčko musí pasovat do už vytištěného těla, takže se tohle číslo mění jen spolu s novým tělem.
-PLUG_SPACE = 12.5
-# Zbytek ubírá stěna zesílená uvnitř na obou koncích stejně, jak chtěl; obrys zůstává, víčko z 2026-11-10 sedne.
-# 0,5 mm doplnilo jeho 4 mm (potvrdil 2026-11-10), v čele v3 pořád mezera, o další 1 mm (řekl 2026-11-11).
-END_PAD = 1.5
+# Celkem o 5 mm proti prvnímu tisku, na obou koncích stejně: 4 mm potvrdil 2026-11-10, v čele v3 pořád mezera,
+# o další 1 mm (řekl 2026-11-11). Krátí se celá krabička i víčko, víčko z v2 do ní nepasuje.
+PLUG_SPACE = 11.0
 
 # ---------- TĚLO ----------
 FRONT_T, WALL, COVER_T = 1.2, 2.0, 1.8   # čelo jako Live Display (1,0), tečky mělké a čisté
@@ -110,11 +108,10 @@ HOLE_BOTTOM = D - HEAD_SINK - SCREW_LEN - 0.5
 assert HOLE_BOTTOM >= FRONT_T + 0.3, "šroub by prorazil čelo"
 assert BOSS_Y - BOSS_D / 2 >= CY1 + 0.9, "sloupek zasahuje do telefonu"
 # Telefon není uprostřed, tečky každého konce na střed jeho volného místa, ať vlevo nezasahují nad telefon.
-GRILLE_XS = ((CX0 - HL_IN + END_PAD) / 2, (CX1 + HL_IN - END_PAD) / 2)
+GRILLE_XS = ((CX0 - HL_IN) / 2, (CX1 + HL_IN) / 2)
 KEY_X = (CX1 + RIB_T + HL_IN) / 2
-# Hlava šroubu ve zdi vjede pod podložku víčka, tam musí stěna zůstat jako ve v3. Konektor (střed y = 0) drží pod tím.
-KEY_WALL, KEY_ROOM_Y0 = HL_IN - 0.5, KEY_Y - KEY_HEAD / 2 - 0.3
-assert KEY_X + KEY_HEAD / 2 + 0.3 <= KEY_WALL, "hlava šroubu ve zdi narazí do koncové stěny"
+# Hlava šroubu ve zdi vjede za víčko až pod jeho podložku, ke koncové stěně.
+assert KEY_X + KEY_HEAD / 2 + 0.3 <= HL_IN, "hlava šroubu ve zdi narazí do koncové stěny"
 AX_Z = D + BR_T + KN_R + 0.3    # kloub 0,3 mm nad lištou
 LUG_X0 = LEG_W / 2 + KN_CLR
 LUG_X1 = LUG_X0 + LUG_W
@@ -176,8 +173,7 @@ def build_shell():
     m = chamfered(rrect(2 * HL, 2 * HH, R_OUT), 0, D, CH_FRONT, CH_BACK)
     z0, z1 = FRONT_T - 0.3, Z_COV - KEY_PAD - 0.2    # pod podložkami klíčových dírek, telefon končí na 9,9
     m -= ext(rrect(2 * HL_IN, 2 * HH_IN, R_OUT - WALL), z1, D + 1)
-    m -= ext(rrect(2 * (HL_IN - END_PAD), 2 * HH_IN, R_OUT - WALL), FRONT_T, z1 + 0.01)
-    m -= ext(rrect(2 * KEY_WALL, 2 * HH_IN, R_OUT - WALL), FRONT_T, z1 + 0.01) ^ box(-HL, HL, KEY_ROOM_Y0, HH, FRONT_T, z1 + 0.01)
+    m -= ext(rrect(2 * HL_IN, 2 * HH_IN, R_OUT - WALL), FRONT_T, z1 + 0.01)
     m -= Manifold.batch_hull([ext(rrect(WW + 2 * WIN_CH, WH + 2 * WIN_CH, WIN_R + WIN_CH), -1, 0),
                               ext(rrect(WW, WH, WIN_R), FRONT_T, FRONT_T + 1)])
     # Zvuk reproduktoru a mikrofonu musí ven dopředu, štěrbiny ve víčku míří od posluchače (řekl 2026-11-10).
@@ -441,7 +437,9 @@ def main():
             "Podlozka 2: nove vicko (kabel vychazi dozadu vyrezem dole vpravo, zvuk z koncu otvory vzadu), "
             "lista se zavesem a nozka. Lista se prisroubuje hornimi dvema sroubky vicka, nozka dvema sroubky "
             "M2.5x10 z boku skrz oka. Celkem 6 sroubku. Na zed: listu odsroubovat, vicko prisroubovat samotne. "
-            "Podlozka 3: nove celo cerne, cela stena 1,2 mm, zvuk ven teckami 2 mm u koncu, konce uvnitr o 5 mm kratsi nez prvni tisk, vicko z podlozky 2 do nej pasuje.")
+            "Podlozka 3: nove celo a vicko cerne. Celo 1,2 mm, zvuk ven teckami 2 mm u koncu, cela krabicka o 5 mm kratsi nez prvni tisk. "
+            "Vicko z v2 do noveho tela nepasuje, lista a nozka z v2 ano. Klicove dirky na zed maji roztec "
+            f"{2 * KEY_X:.1f} mm.")
     if write_3mf is None:
         print("bambu3mf chybí: 3MF zůstává z minula, nové jsou jen STL ve složce stl/")
     else:
@@ -450,8 +448,9 @@ def main():
             [("Test hinge lug", meshes["test_zaves_oko"], 1), ("Test hinge knuckle", meshes["test_zaves_kloub"], 1)],
             [("Back cover", meshes["vicko"], 1), ("Hinge bracket", meshes["lista"], 1),
              ("Kickstand", meshes["nozka"], 1, brim)],
-            [("Front frame", meshes["telo"], 2)],
-        ], plate_names=["1 Hinge test - white PLA", "2 Back cover and kickstand - white PLA", "3 Front frame - black PLA"],
+            [("Front frame", meshes["telo"], 2), ("Back cover", meshes["vicko"], 2)],
+        ], plate_names=["1 Hinge test - white PLA", "2 Back cover and kickstand - white PLA",
+                        "3 Front frame and back cover - black PLA"],
             info={"Title": f"Home assistant phone holder {VERSION}", "Designer": "Lukas Kmoch", "Description": desc},
             filaments=[("Generic PLA", "#F2F2F2"), ("Generic PLA", "#1A1A1A")])
     preview(T, shell, cover_b, bracket, leg, OUT / "nahled.png")
