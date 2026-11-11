@@ -109,8 +109,12 @@ BOSS_TOP = Z_COV - RING_H
 HOLE_BOTTOM = D - HEAD_SINK - SCREW_LEN - 0.5
 assert HOLE_BOTTOM >= FRONT_T + 0.3, "šroub by prorazil čelo"
 assert BOSS_Y - BOSS_D / 2 >= CY1 + 0.9, "sloupek zasahuje do telefonu"
-GRILLE_X = (CX1 + HL_IN - END_PAD) / 2
+# Telefon není uprostřed, tečky každého konce na střed jeho volného místa, ať vlevo nezasahují nad telefon.
+GRILLE_XS = ((CX0 - HL_IN + END_PAD) / 2, (CX1 + HL_IN - END_PAD) / 2)
 KEY_X = (CX1 + RIB_T + HL_IN) / 2
+# Hlava šroubu ve zdi vjede pod podložku víčka, tam musí stěna zůstat jako ve v3. Konektor (střed y = 0) drží pod tím.
+KEY_WALL, KEY_ROOM_Y0 = HL_IN - 0.5, KEY_Y - KEY_HEAD / 2 - 0.3
+assert KEY_X + KEY_HEAD / 2 + 0.3 <= KEY_WALL, "hlava šroubu ve zdi narazí do koncové stěny"
 AX_Z = D + BR_T + KN_R + 0.3    # kloub 0,3 mm nad lištou
 LUG_X0 = LEG_W / 2 + KN_CLR
 LUG_X1 = LUG_X0 + LUG_W
@@ -173,13 +177,14 @@ def build_shell():
     z0, z1 = FRONT_T - 0.3, Z_COV - KEY_PAD - 0.2    # pod podložkami klíčových dírek, telefon končí na 9,9
     m -= ext(rrect(2 * HL_IN, 2 * HH_IN, R_OUT - WALL), z1, D + 1)
     m -= ext(rrect(2 * (HL_IN - END_PAD), 2 * HH_IN, R_OUT - WALL), FRONT_T, z1 + 0.01)
+    m -= ext(rrect(2 * KEY_WALL, 2 * HH_IN, R_OUT - WALL), FRONT_T, z1 + 0.01) ^ box(-HL, HL, KEY_ROOM_Y0, HH, FRONT_T, z1 + 0.01)
     m -= Manifold.batch_hull([ext(rrect(WW + 2 * WIN_CH, WH + 2 * WIN_CH, WIN_R + WIN_CH), -1, 0),
                               ext(rrect(WW, WH, WIN_R), FRONT_T, FRONT_T + 1)])
     # Zvuk reproduktoru a mikrofonu musí ven dopředu, štěrbiny ve víčku míří od posluchače (řekl 2026-11-10).
-    for sx in (-1, 1):
+    for gx in GRILLE_XS:
         for i in (-1, 0, 1):
             for j in range(-3, 4):
-                m -= cyl(sx * GRILLE_X + i * GRILLE_PITCH, j * GRILLE_PITCH, -1, FRONT_T + 1, GRILLE_D)
+                m -= cyl(gx + i * GRILLE_PITCH, j * GRILLE_PITCH, -1, FRONT_T + 1, GRILLE_D)
 
     feats = [
         box(CX0, CX1, CY0 - RIB_T, CY0, z0, z1),                              # dole celá délka
