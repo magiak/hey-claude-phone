@@ -24,7 +24,7 @@ except ImportError:
     write_3mf = None
 
 OUT = Path(__file__).parent
-VERSION = "v4"         # vytištěné verze jsou v VERZE.md a mají git tag drzak-vN
+VERSION = "v5"         # vytištěné verze jsou v VERZE.md a mají git tag drzak-vN
 sys.stdout.reconfigure(encoding="utf-8")
 
 # ---------- TELEFON (ASUS ZenFone 5Z, na šířku, výřez kamery vlevo, tlačítka nahoře) ----------
@@ -109,7 +109,9 @@ assert HOLE_BOTTOM >= FRONT_T + 0.3, "šroub by prorazil čelo"
 assert BOSS_Y - BOSS_D / 2 >= CY1 + 0.9, "sloupek zasahuje do telefonu"
 # Telefon není uprostřed, tečky každého konce na střed jeho volného místa, ať vlevo nezasahují nad telefon.
 GRILLE_XS = ((CX0 - HL_IN) / 2, (CX1 + HL_IN) / 2)
-KEY_X = (CX1 + RIB_T + HL_IN) / 2
+# Ve v4 zbylo mezi dírkou a krajem víčka 0,2 mm (vytištěno 2026-11-11), aspoň 1,2 mm = tři stopy trysky.
+KEY_X = HL_IN - COV_CLR - 1.2 - KEY_HEAD / 2
+assert np.hypot(KEY_X - CX1 - RIB_T, KEY_Y + KEY_RISE - (CY1 - 15)) > KEY_HEAD / 2 + 0.3, "hlava šroubu ve zdi zavadí o žebro"
 # Hlava šroubu ve zdi vjede za víčko až pod jeho podložku, ke koncové stěně.
 assert KEY_X + KEY_HEAD / 2 + 0.3 <= HL_IN, "hlava šroubu ve zdi narazí do koncové stěny"
 AX_Z = D + BR_T + KN_R + 0.3    # kloub 0,3 mm nad lištou
