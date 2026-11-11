@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Asistent</string>
+    <string name="accessibility_description">Po budicím slově otevře aplikaci Claude a zapne hlasový režim. Po hovoru si přečte poslední odpověď, aby zůstala na displeji. Nikam nic neposílá.</string>
+
+    <string name="settings">Nastavení</string>
+    <string name="done">Hotovo</string>
+    <string name="cancel">Zrušit</string>
+
+    <string name="mic_denied">Bez mikrofonu to nepůjde. Povol ho v nastavení aplikace.</string>
+    <string name="claude_missing">Chybí aplikace Claude.</string>
+    <string name="service_disabled">Služba přístupnosti je vypnutá, hlasový režim v Claudovi zapni sám. Zapneš ji podržením prstu.</string>
+    <string name="service_not_running">Služba přístupnosti je zapnutá, ale neběží. Podrž prst, vypni ji a znovu zapni.</string>
+    <string name="trial_note">Zkouška: Clauda neotevírám, jen bliknu.</string>
+    <string name="connector_offline">Konektor je odpojený: Claude teď hlasitost, tisk ani sken neovládne.</string>
+    <string name="hearing_you">Slyším tě.</string>
+    <string name="opening_claude">Otevírám Clauda…</string>
+    <string name="voice_mode_not_started">Minule se hlasový režim nespustil. Otevři Clauda a zkontroluj, co ukazuje.</string>
+
+    <string name="meeting_recording">Porada · nahrávám %1$d min</string>
+    <string name="meeting_summarizing">Porada · píšu shrnutí</string>
+    <string name="meeting_hint">Ptej se: „%1$s“ a otázka.\nKonec: „%1$s, end the meeting“.</string>
+
+    <string name="ask_title">Zeptej se</string>
+    <string name="ask_hint">Řekni „%1$s“ a ptej se nahlas. Poslední odpověď tu zůstane napsaná.</string>
+    <string name="last_title">Claude naposledy · %1$s</string>
+    <string name="ago_now">teď</string>
+    <string name="ago_min">před %1$s min</string>
+    <string name="ago_hours">před %1$s h</string>
+
+    <string name="demo_question">Jak dlouho vařit vajíčko natvrdo?</string>
+    <string name="demo_answer">Od chvíle, kdy voda začne vřít, zhruba 9 až 10 minut. Pak ho dej hned do studené vody, líp se loupe a žloutek nezezelená.</string>
+
+    <string name="record_title">Nahrávání hlasu pro ladění</string>
+    <string name="record_arm">Klepni a začne nahrávání, minuta a půl. Pokaždé, když okraje bliknou zeleně, řekni jednou „%1$s“.</string>
+    <string name="record_left">Nahrávám, zbývá %1$d s</string>
+    <string name="record_none">Žádná nahrávka.</string>
+    <string name="record_evaluating">Vyhodnocuji nahrávku…</string>
+    <string name="record_crashed">Nahrávání spadlo: %1$s</string>
+    <string name="record_mic_failed">Mikrofon se nepodařilo otevřít, nahrávání neběží.</string>
+    <string name="record_done_evaluating">Hotovo, díky. Vyhodnocuji nahrávku…</string>
+    <string name="record_model_failed">Model řeči se nenačetl, nahrávku nevyhodnotím.</string>
+    <string name="record_replay_result">Hotovo, díky. Telefon na nahrávce poznal „%1$s“ %2$d× z 10, při běžné řeči se spustil %3$d×.</string>
+    <string name="record_replay_failed">Nahrávku se nepodařilo vyhodnotit: %1$s</string>
+    <string name="step_start">Stůj blízko. Až okraje bliknou zeleně, řekni jednou „%1$s“.</string>
+    <string name="step_say">TEĎ řekni jednou\n„%1$s“</string>
+    <string name="step_counter">(%1$d z 10)</string>
+    <string name="step_wait">Mlč a počkej, až zase blikne.</string>
+    <string name="step_move">Teď odejdi 2 až 3 metry dál, kam budeš mluvit z gauče nebo od stolu. Počkej tam na bliknutí.</string>
+    <string name="step_talk">Konec. Teď půl minuty normálně mluv česky, o čemkoli, jen ne o Claudovi.</string>
+
+    <string name="speech_model_loading">Načítám model řeči…</string>
+    <string name="speech_model_failed">Model řeči se nenačetl: %1$s</string>
+    <string name="listening">Poslouchám</string>
+    <string name="mic_dropped">Mikrofon vypadl, zkouším to znovu.</string>
+
+    <string name="bridge_http_only">Jen adresy http a https.</string>
+    <string name="bridge_network_down">Síť neodpovídá.</string>
+
+    <string name="new_chat">Každý hovor v nové konverzaci</string>
+    <string name="new_chat_hint">Vypnuté: pokračuje v poslední konverzaci a otevře se o chvilku rychleji.</string>
+    <string name="end_call_after_silence">Ukončit hovor po tichu</string>
+    <string name="dark_theme">Tmavý vzhled</string>
+    <string name="dark_theme_hint">Pro černý rámeček. Světlý sedí k bílému.</string>
+    <string name="open_claude_plain">Otevřít Clauda bez hovoru</string>
+    <string name="open_claude_plain_hint">Na nastavení Clauda nebo přihlášení. Zpátky na hodiny tlačítkem Domů.</string>
+    <string name="meeting_record">Nahrát poradu</string>
+    <string name="meeting_end">Ukončit poradu</string>
+    <string name="meeting_voice_hint">Nebo „%1$s, record the meeting“ a na konci „%1$s, end the meeting“.</string>
+    <string name="reset_defaults">Obnovit výchozí</string>
+    <string name="reset_defaults_hint">Hodiny místo vlastní obrazovky a nastavení jako na začátku.</string>
+    <string name="reset_confirm">Vrátit hodiny a výchozí nastavení? Vlastní obrazovka se smaže.</string>
+    <string name="reset_confirm_ok">Obnovit</string>
+    <string name="language">Jazyk</string>
+</resources>

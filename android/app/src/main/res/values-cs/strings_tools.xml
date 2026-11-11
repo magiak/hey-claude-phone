@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tool_set_volume">Hlasitost</string>
+    <string name="tool_prepare_print">Připravit tisk</string>
+    <string name="tool_print">Vytisknout</string>
+    <string name="tool_scan">Naskenovat</string>
+    <string name="tool_set_home_screen">Nastavit obrazovku</string>
+    <string name="tool_get_home_screen">Přečíst obrazovku</string>
+    <string name="tool_reset_home_screen">Vrátit hodiny</string>
+    <string name="tool_find_meetings">Porady</string>
+    <string name="tool_read_meeting">Přepis porady</string>
+
+    <string name="meeting_archive_no_summary">Shrnutí ještě není.</string>
+    <string name="meeting_archive_from_transcript">Z přepisu:</string>
+    <string name="meeting_archive_none">Žádná porada zatím nahraná není.</string>
+    <string name="meeting_archive_no_hit">„%1$s“ v žádné poradě nezaznělo.</string>
+    <string name="meeting_archive_header">Porada %1$s (id %1$s):</string>
+
+    <string name="meeting_announce_start">Nahrávám poradu.</string>
+    <string name="meeting_announce_end">Končím poradu a píšu shrnutí.</string>
+    <string name="meeting_say_summary_missing">Porada je nahraná, shrnutí chybí. %1$s</string>
+    <string name="meeting_say_done_incomplete">Porada skončila. Shrnutí je uložené, ale přepis není celý.</string>
+    <string name="meeting_say_done">Porada skončila. Shrnutí je uložené v telefonu.</string>
+    <string name="meeting_error_generic">Něco se pokazilo, zkus to znovu.</string>
+    <string name="meeting_tts_cannot">Telefon neumí mluvit jazykem „%1$s“.</string>
+    <string name="meeting_tts_failed">Hlas telefonu se nespustil.</string>
+
+    <string name="meeting_note_no_model">Bez modelu řeči neslyším „%1$s“, porada se jen nahrává.</string>
+    <string name="meeting_note_no_mic">Mikrofon se neotevřel, porada se nenahrála.</string>
+    <string name="meeting_note_crashed">Nahrávání spadlo: %1$s</string>
+    <string name="meeting_note_transcribe_failed">Přepis zatím nejde: %1$s Nahrávám dál a zkusím to znovu.</string>
+
+    <string name="meeting_transcript_title">Porada %1$s</string>
+    <string name="meeting_summary_title">Shrnutí porady %1$s</string>
+    <string name="meeting_speaker">Mluvčí %1$d</string>
+    <string name="meeting_speech">Řeč</string>
+    <string name="meeting_question_prefix">Otázka pro Clauda:</string>
+    <string name="meeting_decisions">Rozhodnutí</string>
+    <string name="meeting_tasks">Úkoly</string>
+    <string name="meeting_none_said">Nezaznělo.</string>
+    <string name="meeting_transcript_incomplete">Přepis není celý: %1$s</string>
+    <string name="meeting_summary_missing">Shrnutí chybí: %1$s</string>
+
+    <string name="meeting_notification_channel">Porada</string>
+    <string name="meeting_notification_title">Nahrávám poradu</string>
+    <string name="meeting_notification_text">Konec: „%1$s, end the meeting“</string>
+    <string name="meeting_notification_stop">Ukončit poradu</string>
+
+    <string name="meeting_transcript_empty">Přepis je prázdný.</string>
+    <string name="meeting_no_key_claude">Chybí klíč pro Clauda.</string>
+    <string name="meeting_refused">Claude odmítl odpovědět.</string>
+    <string name="meeting_cut_off">Claude to nestihl dopsat.</string>
+    <string name="meeting_no_answer">Claude neodpověděl.</string>
+    <string name="meeting_no_key_scribe">Chybí klíč pro přepis.</string>
+    <string name="meeting_scribe_failed">Přepis selhal (%1$d).</string>
+    <string name="meeting_scribe_offline">Přepis nejde, telefon je asi bez internetu.</string>
+    <string name="meeting_scribe_not_ready">Přepis ještě není připravený.</string>
+
+    <string name="meeting_fake_answer">Zkušební odpověď. Slyšel jsem otázku: %1$s</string>
+    <string name="meeting_fake_summary">Zkušební shrnutí bez Clauda. Přepis má %1$d řádků.</string>
+</resources>

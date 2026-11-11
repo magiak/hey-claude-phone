@@ -4,6 +4,7 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
@@ -19,7 +20,7 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.TextView
-import cz.magiak.asistent.mcp.Konektor
+import cz.magiak.asistent.mcp.Connector
 import cz.magiak.asistent.meeting.Meeting
 import cz.magiak.asistent.meeting.MeetingArchive
 import cz.magiak.asistent.meeting.MeetingService
@@ -27,6 +28,7 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
+import android.text.format.DateFormat
 import java.util.Locale
 
 /**
@@ -65,7 +67,7 @@ class MainActivity : Activity() {
     private val everyMinute = object : Runnable {
         override fun run() {
             applyNight()
-            date.text = DATE.format(Date()).replaceFirstChar { it.uppercase() }
+            date.text = formatDate().replaceFirstChar { it.uppercase() }
             if (!armed && recording == null) showCard()
             updateStatus()
             glow.postDelayed(this, 60_000)
@@ -73,6 +75,8 @@ class MainActivity : Activity() {
     }
 
     @SuppressLint("WakelockTimeout")
+    override fun attachBaseContext(base: Context) = super.attachBaseContext(Language.wrap(base))
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -80,7 +84,7 @@ class MainActivity : Activity() {
         // out, the 60 s timeout ran and the phone woke to the PIN screen (2026-11-08).
         @Suppress("DEPRECATION")
         screenLock = (getSystemService(POWER_SERVICE) as PowerManager)
-            .newWakeLock(PowerManager.SCREEN_BRIGHT_WAKE_LOCK, "asistent:obrazovka")
+            .newWakeLock(PowerManager.SCREEN_BRIGHT_WAKE_LOCK, "asistent:screen")
             .apply { setReferenceCounted(false); acquire() }
         setContentView(R.layout.activity_main)
         status = findViewById(R.id.status)
@@ -143,6 +147,10 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        if (Language.current(this) != UserSettings.language(this)) {
+            recreate()
+            return
+        }
         resumed = true
         Theme.apply(this)
         hideSystemBars()
@@ -184,13 +192,13 @@ class MainActivity : Activity() {
         when {
             checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED ->
                 if (askedForMic) {
-                    status.text = "Bez mikrofonu to nepůjde. Povol ho v nastavení aplikace."
+                    status.text = getString(R.string.mic_denied)
                 } else {
                     askedForMic = true
                     requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_MIC)
                 }
             packageManager.getLaunchIntentForPackage(Config.CLAUDE_PACKAGE) == null ->
-                status.text = "Chybí aplikace Claude."
+                status.text = getString(R.string.claude_missing)
             // The meeting service holds the mic and listens for the wake word itself.
             Meeting.recording -> listener.stop()
             !armed && recording == null -> listener.start()
@@ -203,15 +211,14 @@ class MainActivity : Activity() {
         // Enabled in settings is not running: ASUS blocks the re-bind after a reinstall or reboot
         // unless the app may auto-start, and the setting kept saying "on" all evening (2026-11-08).
         val service = when {
-            !isServiceEnabled() -> "Služba přístupnosti je vypnutá, hlasový režim v Claudovi zapni sám. Zapneš ji podržením prstu."
-            !Session.serviceConnected -> "Služba přístupnosti je zapnutá, ale neběží. Podrž prst, vypni ji a znovu zapni."
+            !isServiceEnabled() -> getString(R.string.service_disabled)
+            !Session.serviceConnected -> getString(R.string.service_not_running)
             else -> null
         }
-        val note = if (trial) "Zkouška: Clauda neotevírám, jen bliknu." else null
-        val konektor = if (BuildConfig.KONEKTOR_URL.isNotEmpty() && !Konektor.online)
-            "Konektor je odpojený: Claude teď hlasitost, tisk ani sken neovládne." else null
-        status.text = listOfNotNull(Session.problem, service, konektor, Meeting.note, note, recordNote, listenStatus).joinToString("\n")
-        screenProblem.text = listOfNotNull(Session.problem, service, konektor).joinToString("\n")
+        val note = if (trial) getString(R.string.trial_note) else null
+        val connector = if (BuildConfig.CONNECTOR_URL.isNotEmpty() && !Connector.online) getString(R.string.connector_offline) else null
+        status.text = listOfNotNull(Session.problem, service, connector, Meeting.note, note, recordNote, listenStatus).joinToString("\n")
+        screenProblem.text = listOfNotNull(Session.problem, service, connector).joinToString("\n")
         screenProblem.visibility = if (screen != null && screenProblem.text.isNotEmpty()) View.VISIBLE else View.GONE
     }
 
@@ -255,7 +262,7 @@ class MainActivity : Activity() {
             glow.postDelayed(listenAgain, 1_200)
             return
         }
-        status.text = "Slyším tě."
+        status.text = getString(R.string.hearing_you)
         glow.postDelayed(launchAfterFlash, 600)
     }
 
@@ -263,10 +270,10 @@ class MainActivity : Activity() {
         listener.stop()
         val launch = packageManager.getLaunchIntentForPackage(Config.CLAUDE_PACKAGE)
         if (launch == null) {
-            status.text = "Chybí aplikace Claude."
+            status.text = getString(R.string.claude_missing)
             return
         }
-        status.text = "Otevírám Clauda…"
+        status.text = getString(R.string.opening_claude)
         Session.launchRequestedAt = System.currentTimeMillis()
         val target = if (UserSettings.newChat(this))
             Intent(Intent.ACTION_VIEW, Uri.parse(Config.NEW_CHAT_URL)).setPackage(Config.CLAUDE_PACKAGE)
@@ -285,34 +292,32 @@ class MainActivity : Activity() {
     private fun showCard() {
         if (Meeting.state == Meeting.State.IDLE) return showLastAnswer(demoAnswer ?: LastAnswer.load(this))
         val min = (System.currentTimeMillis() - Meeting.startedAt) / 60_000
-        cardTitle.text = if (Meeting.recording) "Porada · nahrávám $min min" else "Porada · píšu shrnutí"
+        cardTitle.text = if (Meeting.recording) getString(R.string.meeting_recording, min) else getString(R.string.meeting_summarizing)
         val asked = Meeting.question
         question.visibility = if (asked == null) View.GONE else View.VISIBLE
         question.text = asked
-        answer.text = Meeting.answer
-            ?: "Ptej se: „${Config.WAKE_LABEL}“ a otázka.\nKonec: „${Config.WAKE_LABEL}, end the meeting“."
+        answer.text = Meeting.answer ?: getString(R.string.meeting_hint, Config.WAKE_LABEL)
     }
 
     private fun showLastAnswer(last: LastAnswer?) {
         if (last == null || !Config.SHOW_LAST_ANSWER) {
-            cardTitle.text = "Zeptej se"
+            cardTitle.text = getString(R.string.ask_title)
             question.visibility = View.GONE
-            answer.text = "Řekni „${Config.WAKE_LABEL}“ a ptej se nahlas. Poslední odpověď tu zůstane napsaná."
+            answer.text = getString(R.string.ask_hint, Config.WAKE_LABEL)
             return
         }
-        cardTitle.text = "Claude naposledy · ${ago(last.at)}"
+        cardTitle.text = getString(R.string.last_title, ago(last.at))
         question.visibility = if (last.question.isBlank()) View.GONE else View.VISIBLE
         question.text = last.question
         answer.text = last.answer
     }
 
-    // The phone UI may be English; the dashboard is Czech regardless.
     private fun ago(at: Long): String {
         val min = (System.currentTimeMillis() - at) / 60_000
         return when {
-            min < 1 -> "teď"
-            min < 60 -> "před $min min"
-            else -> "před ${min / 60} h"
+            min < 1 -> getString(R.string.ago_now)
+            min < 60 -> getString(R.string.ago_min, min)
+            else -> getString(R.string.ago_hours, min / 60)
         }
     }
 
@@ -330,75 +335,74 @@ class MainActivity : Activity() {
         }
     }
 
-    // Debug builds only. hlas/slovo/vedle/odpoved: screenshots without anyone speaking.
-    // zkouska: the wake word only flashes, so a round of tries for tuning does not open Claude
+    // Debug builds only. voice/wake/miss/answer: screenshots without anyone speaking.
+    // trial: the wake word only flashes, so a round of tries for tuning does not open Claude
     // each time; the Home button ends it.
-    // nahraj: a guided recording of his voice for tuning on the PC; starts on his tap.
-    // prehraj: the newest recording through the current Config, no voice needed.
-    // obrazovka: a home page tried without Claude, pushed first to
-    // /sdcard/Android/data/cz.magiak.asistent/files/obrazovka.html; hodiny puts the clock back.
-    // adb shell am start -n cz.magiak.asistent/.MainActivity --es ukazka zkouska
+    // record: a guided recording of his voice for tuning on the PC; starts on his tap.
+    // replay: the newest recording through the current Config, no voice needed.
+    // screen: a home page tried without Claude, pushed first to
+    // /sdcard/Android/data/cz.magiak.asistent/files/screen.html; clock puts the clock back.
+    // adb shell am start -n cz.magiak.asistent/.MainActivity --es demo trial
     private fun showDemo(intent: Intent) {
         if (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE == 0) return
-        // porada: start or stop without saying it. nanecisto: no keys and no sound (offline English
-        // transcript, canned answers, voice into files); soubor + rychlost play a WAV in instead of the mic.
-        when (intent.getStringExtra("porada")) {
+        // meeting: start or stop without saying it. dry_run: no keys and no sound (offline English
+        // transcript, canned answers, voice into files); file + speed play a WAV in instead of the mic.
+        when (intent.getStringExtra("meeting")) {
             "start" -> {
                 listener.stop()
-                MeetingService.start(this, intent.getBooleanExtra("nanecisto", false),
-                    intent.getStringExtra("soubor"), intent.getFloatExtra("rychlost", 1f))
+                MeetingService.start(this, intent.getBooleanExtra("dry_run", false),
+                    intent.getStringExtra("file"), intent.getFloatExtra("speed", 1f))
                 return
             }
             "stop" -> {
                 MeetingService.stop(this)
                 return
             }
-            // One call to each service with the keys from local.properties (or a test "klic"), result in logcat.
-            "klice" -> {
-                val key = intent.getStringExtra("klic")
-                Thread({ MeetingService.checkKeys(key) }, "porada-klice").start()
+            // One call to each service with the keys from local.properties (or a test "key"), result in logcat.
+            "keys" -> {
+                val key = intent.getStringExtra("key")
+                Thread({ MeetingService.checkKeys(key) }, "meeting-keys").start()
                 return
             }
-            // What find_meetings would hand Claude for "dotaz", in logcat.
-            "najdi" -> {
-                Log.i(Config.TAG, "Porada: najdi\n" + MeetingArchive.find(this, intent.getStringExtra("dotaz").orEmpty()))
+            // What find_meetings would hand Claude for "query", in logcat.
+            "find" -> {
+                Log.i(Config.TAG, "Meeting: find\n" + MeetingArchive.find(this, intent.getStringExtra("query").orEmpty()))
                 return
             }
         }
-        trial = intent.getStringExtra("ukazka") == "zkouska"
+        trial = intent.getStringExtra("demo") == "trial"
         // Heard words with their confidence are for tuning only; on the desk they were noise.
         findViewById<View>(R.id.heard).visibility = if (trial) View.VISIBLE else View.GONE
-        val show: () -> Unit = when (intent.getStringExtra("ukazka")) {
-            "hlas" -> glow::voice
-            "slovo" -> glow::wake
-            "vedle" -> glow::miss
-            "nahraj" -> {
+        val show: () -> Unit = when (intent.getStringExtra("demo")) {
+            "voice" -> glow::voice
+            "wake" -> glow::wake
+            "miss" -> glow::miss
+            "record" -> {
                 arm()
                 return
             }
-            "obrazovka" -> {
-                File(getExternalFilesDir(null), "obrazovka.html").takeIf { it.exists() }
+            "screen" -> {
+                File(getExternalFilesDir(null), "screen.html").takeIf { it.exists() }
                     ?.let { CustomScreen.save(this, it.readText()) }
                 return
             }
-            "hodiny" -> {
+            "clock" -> {
                 CustomScreen.reset(this)
                 return
             }
-            "prehraj" -> {
+            "replay" -> {
                 val wav = (getExternalFilesDir(null) ?: filesDir)
-                    .listFiles { f -> f.name.startsWith("nahravka-") && f.name.endsWith(".wav") }
+                    .listFiles { f -> f.name.startsWith("recording-") && f.name.endsWith(".wav") }
                     ?.maxByOrNull { it.name }
-                recordNote = if (wav == null) "Žádná nahrávka." else "Vyhodnocuji nahrávku…"
+                recordNote = getString(if (wav == null) R.string.record_none else R.string.record_evaluating)
                 updateStatus()
                 if (wav != null) VoiceRecording.replay(this, wav) { recordNote = it; updateStatus() }
                 return
             }
-            "odpoved" -> {
+            "answer" -> {
                 demoAnswer = LastAnswer(
-                    "Jak dlouho vařit vajíčko natvrdo?",
-                    "Od chvíle, kdy voda začne vřít, zhruba 9 až 10 minut. Pak ho dej hned do studené vody, " +
-                        "líp se loupe a žloutek nezezelená.",
+                    getString(R.string.demo_question),
+                    getString(R.string.demo_answer),
                     System.currentTimeMillis() - 12 * 60_000L,
                 )
                 showLastAnswer(demoAnswer)
@@ -413,10 +417,10 @@ class MainActivity : Activity() {
         listener.stop()
         armed = true
         recordNote = null
-        cardTitle.text = "Nahrávání hlasu pro ladění"
+        cardTitle.text = getString(R.string.record_title)
         question.visibility = View.GONE
         answer.setTextSize(TypedValue.COMPLEX_UNIT_SP, 34f)
-        answer.text = "Klepni a začne nahrávání, minuta a půl. Pokaždé, když okraje bliknou zeleně, řekni jednou „${Config.WAKE_LABEL}“."
+        answer.text = getString(R.string.record_arm, Config.WAKE_LABEL)
         listenStatus = ""
         updateStatus()
         applyNight()
@@ -431,7 +435,7 @@ class MainActivity : Activity() {
                 answer.text = text
                 if (prompt) glow.wake()
             },
-            onLeft = { status.text = "Nahrávám, zbývá $it s" },
+            onLeft = { status.text = getString(R.string.record_left, it) },
             onDone = { note ->
                 if (recording != null) {
                     endRecording()
@@ -467,8 +471,12 @@ class MainActivity : Activity() {
             or View.SYSTEM_UI_FLAG_LAYOUT_STABLE)
     }
 
+    private fun formatDate(): String {
+        val locale = Locale.getDefault()
+        return SimpleDateFormat(DateFormat.getBestDateTimePattern(locale, "EEEEdMMMM"), locale).format(Date())
+    }
+
     private companion object {
         const val REQUEST_MIC = 1
-        val DATE = SimpleDateFormat("EEEE d. MMMM", Locale("cs"))
     }
 }

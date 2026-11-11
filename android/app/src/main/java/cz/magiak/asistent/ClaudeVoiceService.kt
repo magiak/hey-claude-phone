@@ -1,5 +1,6 @@
 package cz.magiak.asistent
 
+import android.content.Context
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
 import android.content.Intent
@@ -17,6 +18,8 @@ import android.view.accessibility.AccessibilityNodeInfo
  * quiet and brings the dashboard back. Does nothing when Claude was opened by hand.
  */
 class ClaudeVoiceService : AccessibilityService() {
+    override fun attachBaseContext(base: Context) = super.attachBaseContext(Language.wrap(base))
+
 
     private enum class State { IDLE, CLICKING, IN_CALL }
 
@@ -41,9 +44,9 @@ class ClaudeVoiceService : AccessibilityService() {
     // A login screen or update dialog hides the button; a wall device must not stay stuck there.
     private val giveUp = Runnable {
         if (state != State.CLICKING) return@Runnable
-        Log.w(Config.TAG, "Tlačítko hlasového režimu se nenašlo včas.")
+        Log.w(Config.TAG, "Voice-mode button not found in time.")
         Session.launchRequestedAt = 0L
-        Session.problem = "Minule se hlasový režim nespustil. Otevři Clauda a zkontroluj, co ukazuje."
+        Session.problem = getString(R.string.voice_mode_not_started)
         if (rootInActiveWindow?.packageName == Config.CLAUDE_PACKAGE) backToDashboard() else state = State.IDLE
     }
 
@@ -59,7 +62,7 @@ class ClaudeVoiceService : AccessibilityService() {
 
         // Someone is tapping in Claude (logging in, say): leave it to them.
         if (event.eventType == AccessibilityEvent.TYPE_VIEW_CLICKED) {
-            Log.i(Config.TAG, "Někdo kliká v Claudovi, nechávám to na něm.")
+            Log.i(Config.TAG, "Someone is tapping in Claude, leaving it to them.")
             handler.removeCallbacks(giveUp)
             handler.removeCallbacks(clickVoice)
             Session.launchRequestedAt = 0L
@@ -82,7 +85,7 @@ class ClaudeVoiceService : AccessibilityService() {
             val root = rootInActiveWindow?.takeIf { it.packageName == Config.CLAUDE_PACKAGE }
             val button = root?.let { findButton(it, Config.VOICE_BUTTON) }
             if (button != null && click(button)) {
-                Log.i(Config.TAG, "Spouštím hlasový režim.")
+                Log.i(Config.TAG, "Starting voice mode.")
                 startWatching()
                 return
             }
@@ -130,7 +133,7 @@ class ClaudeVoiceService : AccessibilityService() {
 
         // Voice-mode button visible again means he closed the call himself.
         if (findButton(root, Config.VOICE_BUTTON) != null) {
-            Log.i(Config.TAG, "Hovor ukončen v aplikaci.")
+            Log.i(Config.TAG, "Call ended in the app.")
             rememberAnswer()
             backToDashboard()
             return
@@ -147,12 +150,12 @@ class ClaudeVoiceService : AccessibilityService() {
         val speaking = audio.isMusicActive
         if (speaking != wasSpeaking) {
             wasSpeaking = speaking
-            Log.i(Config.TAG, if (speaking) "Claude mluví." else "Claude domluvil.")
+            Log.i(Config.TAG, if (speaking) "Claude is speaking." else "Claude finished speaking.")
         }
         if (speaking) lastChangeAt = now
         val idleMs = UserSettings.callIdleSeconds(this) * 1_000L
         if (now - lastChangeAt > idleMs || now - callStartedAt > Config.MAX_CALL_MS) {
-            Log.i(Config.TAG, "Hovor ztichl, ukončuju ho.")
+            Log.i(Config.TAG, "Call went quiet, ending it.")
             findButton(root, Config.STOP_BUTTON)?.let(::click)
             state = State.IDLE
             handler.postDelayed({
@@ -166,13 +169,13 @@ class ClaudeVoiceService : AccessibilityService() {
         if (!Config.SHOW_LAST_ANSWER) return
         val root = rootInActiveWindow?.takeIf { it.packageName == Config.CLAUDE_PACKAGE } ?: return
         val last = LastAnswer.fromChat(root, walk(root)) ?: return
-        Log.i(Config.TAG, "Zapamatovaná odpověď: ${last.answer.length} znaků.")
+        Log.i(Config.TAG, "Remembered answer: ${last.answer.length} chars.")
         LastAnswer.save(this, last)
     }
 
     private fun backToDashboard() {
         state = State.IDLE
-        Log.i(Config.TAG, "Zpátky na nástěnku.")
+        Log.i(Config.TAG, "Back to the dashboard.")
         startActivity(
             Intent(this, MainActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
@@ -185,12 +188,12 @@ class ClaudeVoiceService : AccessibilityService() {
                 listOfNotNull(node.contentDescription, node.text).any { label.matches(it.toString().trim()) }
         }
 
-    // If Claude renames the button, `adb logcat -s Asistent` shows what it offers now.
+    // If Claude renames the button, `adb logcat -s Assistant` shows what it offers now.
     private fun logLabels(root: AccessibilityNodeInfo) {
         dumpedLabels = true
         walk(root).forEach {
             val label = listOfNotNull(it.contentDescription, it.text, it.viewIdResourceName).joinToString(" | ")
-            if (label.isNotBlank()) Log.i(Config.TAG, "Prvek: $label klikací=${it.isClickable}")
+            if (label.isNotBlank()) Log.i(Config.TAG, "Node: $label clickable=${it.isClickable}")
         }
     }
 

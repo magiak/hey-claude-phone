@@ -1,5 +1,75 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Asistent</string>
-    <string name="accessibility_description">Po budicím slově otevře aplikaci Claude a zapne hlasový režim. Po hovoru si přečte poslední odpověď, aby zůstala na displeji. Nikam nic neposílá.</string>
+    <string name="app_name">Assistant</string>
+    <string name="accessibility_description">After the wake word it opens the Claude app and turns on voice mode. After the call it reads the last answer so it stays on the display. It sends nothing anywhere.</string>
+
+    <string name="settings">Settings</string>
+    <string name="done">Done</string>
+    <string name="cancel">Cancel</string>
+
+    <string name="mic_denied">Without the microphone this won\'t work. Allow it in the app settings.</string>
+    <string name="claude_missing">The Claude app is not installed.</string>
+    <string name="service_disabled">The accessibility service is off, turn on voice mode in Claude yourself. Turn the service on with a long press.</string>
+    <string name="service_not_running">The accessibility service is on but not running. Long press, turn it off and on again.</string>
+    <string name="trial_note">Trial: not opening Claude, just flashing.</string>
+    <string name="connector_offline">Connector offline: Claude can\'t control volume, printing or scanning right now.</string>
+    <string name="hearing_you">I hear you.</string>
+    <string name="opening_claude">Opening Claude…</string>
+    <string name="voice_mode_not_started">Voice mode did not start last time. Open Claude and check what it shows.</string>
+
+    <string name="meeting_recording">Meeting · recording %1$d min</string>
+    <string name="meeting_summarizing">Meeting · writing the summary</string>
+    <string name="meeting_hint">Ask: “%1$s” and your question.\nEnd: “%1$s, end the meeting”.</string>
+
+    <string name="ask_title">Ask me</string>
+    <string name="ask_hint">Say “%1$s” and ask out loud. The last answer stays here in writing.</string>
+    <string name="last_title">Claude last · %1$s</string>
+    <string name="ago_now">now</string>
+    <string name="ago_min">%1$s min ago</string>
+    <string name="ago_hours">%1$s h ago</string>
+
+    <string name="demo_question">How long do I boil a hard-boiled egg?</string>
+    <string name="demo_answer">About 9 to 10 minutes from when the water starts to boil. Then put it straight into cold water, it peels more easily and the yolk doesn\'t turn green.</string>
+
+    <string name="record_title">Voice recording for tuning</string>
+    <string name="record_arm">Tap to start recording, a minute and a half. Each time the edges flash green, say “%1$s” once.</string>
+    <string name="record_left">Recording, %1$d s left</string>
+    <string name="record_none">No recording.</string>
+    <string name="record_evaluating">Evaluating the recording…</string>
+    <string name="record_crashed">Recording failed: %1$s</string>
+    <string name="record_mic_failed">Could not open the microphone, recording is not running.</string>
+    <string name="record_done_evaluating">Done, thanks. Evaluating the recording…</string>
+    <string name="record_model_failed">The speech model did not load, cannot evaluate the recording.</string>
+    <string name="record_replay_result">Done, thanks. The phone recognized “%1$s” %2$d× out of 10 in the recording, and triggered %3$d× during normal talk.</string>
+    <string name="record_replay_failed">Could not evaluate the recording: %1$s</string>
+    <string name="step_start">Stand close. When the edges flash green, say “%1$s” once.</string>
+    <string name="step_say">NOW say once\n“%1$s”</string>
+    <string name="step_counter">(%1$d of 10)</string>
+    <string name="step_wait">Stay quiet and wait until it flashes again.</string>
+    <string name="step_move">Now walk 2 to 3 metres away, to where you would speak from the sofa or desk. Wait there for the flash.</string>
+    <string name="step_talk">Done. Now talk normally for half a minute, about anything except Claude.</string>
+
+    <string name="speech_model_loading">Loading the speech model…</string>
+    <string name="speech_model_failed">The speech model did not load: %1$s</string>
+    <string name="listening">Listening</string>
+    <string name="mic_dropped">The microphone dropped out, trying again.</string>
+
+    <string name="bridge_http_only">Only http and https addresses.</string>
+    <string name="bridge_network_down">The network does not respond.</string>
+
+    <string name="new_chat">Every call in a new conversation</string>
+    <string name="new_chat_hint">Off: continues the last conversation and opens a bit faster.</string>
+    <string name="end_call_after_silence">End the call after silence</string>
+    <string name="dark_theme">Dark theme</string>
+    <string name="dark_theme_hint">For a black bezel. Light suits a white one.</string>
+    <string name="open_claude_plain">Open Claude without a call</string>
+    <string name="open_claude_plain_hint">For Claude\'s settings or signing in. Back to the clock with the Home button.</string>
+    <string name="meeting_record">Record a meeting</string>
+    <string name="meeting_end">End the meeting</string>
+    <string name="meeting_voice_hint">Or “%1$s, record the meeting” and at the end “%1$s, end the meeting”.</string>
+    <string name="reset_defaults">Restore defaults</string>
+    <string name="reset_defaults_hint">The clock instead of a custom screen, and settings as at the start.</string>
+    <string name="reset_confirm">Restore the clock and default settings? The custom screen will be deleted.</string>
+    <string name="reset_confirm_ok">Restore</string>
+    <string name="language">Language</string>
 </resources>

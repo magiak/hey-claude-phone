@@ -159,7 +159,7 @@
         android:layout_marginTop="@dimen/hidden_edge"
         android:layout_marginEnd="@dimen/hidden_edge"
         android:alpha="0.6"
-        android:contentDescription="Nastavení"
+        android:contentDescription="@string/settings"
         android:padding="12dp"
         android:src="@drawable/ic_settings"
         android:tint="@color/status" />

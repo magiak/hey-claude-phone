@@ -27,7 +27,7 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "0.3"
-        buildConfigField("String", "KONEKTOR_URL", "\"${localProperties.getProperty("konektor.url", "")}\"")
+        buildConfigField("String", "CONNECTOR_URL", "\"${localProperties.getProperty("connector.url", "")}\"")
         buildConfigField("String", "PRINTER_HOST", "\"${localProperties.getProperty("printer.host", "")}\"")
         buildConfigField("String", "ELEVENLABS_KEY", "\"${localProperties.getProperty("elevenlabs.key", "")}\"")
         buildConfigField("String", "ANTHROPIC_KEY", "\"${localProperties.getProperty("anthropic.key", "")}\"")
@@ -69,7 +69,7 @@ val downloadVoskModel by tasks.registering {
     doLast {
         target.deleteRecursively()
         val url = "https://alphacephei.com/vosk/models/$voskModel.zip"
-        logger.lifecycle("Stahuju $url")
+        logger.lifecycle("Downloading $url")
         ZipInputStream(URI(url).toURL().openStream().buffered()).use { zip ->
             generateSequence { zip.nextEntry }.forEach { entry ->
                 val relative = entry.name.substringAfter('/')

@@ -19,14 +19,17 @@ import android.os.IBinder
 import android.os.Looper
 import android.os.PowerManager
 import android.util.Log
+import cz.magiak.asistent.Language
 import cz.magiak.asistent.Config
 import cz.magiak.asistent.MainActivity
+import cz.magiak.asistent.R
 import cz.magiak.asistent.SpeechModel
 import cz.magiak.asistent.WakeWordListener
 import org.json.JSONObject
 import org.vosk.Recognizer
 import java.io.Closeable
 import java.io.File
+import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -43,9 +46,11 @@ import kotlin.math.sqrt
  * network or the voice, so pieces are transcribed in order and a question waits for the piece before it.
  */
 class MeetingService : Service() {
+    override fun attachBaseContext(base: Context) = super.attachBaseContext(Language.wrap(base))
+
 
     private val main = Handler(Looper.getMainLooper())
-    private val worker = Executors.newSingleThreadExecutor { Thread(it, "porada-prace") }
+    private val worker = Executors.newSingleThreadExecutor { Thread(it, "meeting-worker") }
     @Volatile private var running = false
     @Volatile private var finishing = false
     // Set while a question is being answered: the answer itself must not trigger another one.
@@ -87,7 +92,7 @@ class MeetingService : Service() {
     @SuppressLint("WakelockTimeout")
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) {
-            if (running) requestFinish("tlačítko") else if (!finishing) stopSelf()
+            if (running) requestFinish("button") else if (!finishing) stopSelf()
             return START_NOT_STICKY
         }
         if (running || finishing) return START_NOT_STICKY
@@ -101,16 +106,16 @@ class MeetingService : Service() {
         val speed = intent?.getFloatExtra(EXTRA_SPEED, 1f) ?: 1f
 
         dir = File(MeetingArchive.root(this), FOLDER.format(Date(startedAt))).apply { mkdirs() }
-        transcript = File(dir, "prepis.md").apply { writeText("# Porada ${TITLE.format(Date(startedAt))}\n\n") }
-        wav = WavWriter(File(dir, "zaznam.wav"))
-        answerer = if (fake) FakeAnswerer() else ClaudeAnswerer()
+        transcript = File(dir, "transcript.md").apply { writeText("# ${getString(R.string.meeting_transcript_title, title())}\n\n") }
+        wav = WavWriter(File(dir, "audio.wav"))
+        answerer = if (fake) FakeAnswerer(this) else ClaudeAnswerer(labels = labels)
         speaker = Speaker(this, if (quiet) dir else null)
         if (!fake) transcriber = ScribeTranscriber()
         if (!quiet) beeper = runCatching { ToneGenerator(AudioManager.STREAM_MUSIC, Config.BEEP_VOLUME) }.getOrNull()
         wakeLock = getSystemService(PowerManager::class.java)
-            .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "asistent:porada").apply { acquire() }
+            .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "assistant:meeting").apply { acquire() }
         Meeting.started(startedAt)
-        Log.i(Config.TAG, "Porada: začátek, ${dir.absolutePath}${if (fake) ", nanečisto" else ""}")
+        Log.i(Config.TAG, "Meeting: started, ${dir.absolutePath}${if (fake) ", dry run" else ""}")
 
         SpeechModel.get(this) { result ->
             result.onSuccess { model ->
@@ -118,12 +123,12 @@ class MeetingService : Service() {
                 recognizer = Recognizer(model, SAMPLE_RATE.toFloat(), WakeWordListener.meetingGrammar()).apply { setWords(true) }
                 if (fake) transcriber = VoskTranscriber(model)
             }.onFailure {
-                Log.e(Config.TAG, "Porada: model řeči se nenačetl", it)
-                Meeting.note("Bez modelu řeči neslyším „${Config.WAKE_LABEL}“, porada se jen nahrává.")
+                Log.e(Config.TAG, "Meeting: speech model did not load", it)
+                Meeting.note(getString(R.string.meeting_note_no_model, Config.WAKE_LABEL))
             }
         }
-        speaker.announce("Nahrávám poradu.")
-        Thread({ capture(source, speed) }, "porada").start()
+        speaker.announce(getString(R.string.meeting_announce_start))
+        Thread({ capture(source, speed) }, "meeting").start()
         return START_NOT_STICKY
     }
 
@@ -144,7 +149,7 @@ class MeetingService : Service() {
             finishing = true
             wav.close()
             Meeting.ended()
-            Meeting.note("Mikrofon se neotevřel, porada se nenahrála.")
+            Meeting.note(getString(R.string.meeting_note_no_mic))
             main.post { stopSelf() }
             return
         }
@@ -161,11 +166,11 @@ class MeetingService : Service() {
                 checkQuestion()
                 maybeCut()
                 if (++reads % HEADER_EVERY == 0) wav.patchHeader()
-                if (wav.samples > MAX_MEETING_S * SAMPLE_RATE) requestFinish("tři hodiny")
+                if (wav.samples > MAX_MEETING_S * SAMPLE_RATE) requestFinish("three hours")
             }
         } catch (e: Exception) {
-            Log.e(Config.TAG, "Porada: nahrávání spadlo", e)
-            Meeting.note("Nahrávání spadlo: ${e.message}")
+            Log.e(Config.TAG, "Meeting: recording crashed", e)
+            Meeting.note(getString(R.string.meeting_note_crashed, e.message.orEmpty()))
         } finally {
             input.close()
             recognizer?.close()
@@ -185,7 +190,7 @@ class MeetingService : Service() {
         val heard = WakeWordListener.heard(json) ?: return
         val at = WakeWordListener.wakeAt(heard) ?: return
         val wakeEnd = recognizerOrigin + (heard[at + Config.WAKE_PHRASE.size - 1].end * SAMPLE_RATE).toLong()
-        Log.i(Config.TAG, "Porada: slyším ${heard.joinToString(" ") { "${it.word} %.2f".format(it.conf) }}")
+        Log.i(Config.TAG, "Meeting: heard ${heard.joinToString(" ") { "${it.word} %.2f".format(it.conf) }}")
         if (busy || pending != null || finishing || wakeEnd < quietUntil) return
         if (WakeWordListener.hasCommand(heard, at)) {
             requestFinish("„${Config.WAKE_LABEL}, end the meeting“")
@@ -212,7 +217,7 @@ class MeetingService : Service() {
             p.lastSpeech >= 0 && now - p.lastSpeech >= QUESTION_PAUSE -> ask(p, (p.lastSpeech + 3L) * FRAME)
             p.lastSpeech < 0 && now - first >= NO_QUESTION -> {
                 pending = null
-                Log.i(Config.TAG, "Porada: po „${Config.WAKE_LABEL}“ nic nezaznělo.")
+                Log.i(Config.TAG, "Meeting: nothing was said after \"${Config.WAKE_LABEL}\".")
             }
             now - first >= MAX_QUESTION -> ask(p, wav.samples)
         }
@@ -242,15 +247,15 @@ class MeetingService : Service() {
             transcribeUpTo(to)
             Meeting.note(null)
         } catch (e: Exception) {
-            Log.w(Config.TAG, "Porada: přepis kousku selhal", e)
-            Meeting.note("Přepis zatím nejde: ${e.message} Nahrávám dál a zkusím to znovu.")
+            Log.w(Config.TAG, "Meeting: transcribing a piece failed", e)
+            Meeting.note(getString(R.string.meeting_note_transcribe_failed, describe(e)))
         }
     }
 
     // Worker only. A failed piece stays owed, so the next call retries it before its own.
     private fun transcribeUpTo(to: Long) {
         owed.add(to)
-        val t = transcriber ?: throw TranscribeFailed("Přepis ještě není připravený.")
+        val t = transcriber ?: throw TranscribeFailed(R.string.meeting_scribe_not_ready)
         while (true) {
             val end = owed.firstOrNull()?.takeIf { it <= to } ?: return
             val from = transcribedUpTo
@@ -260,7 +265,7 @@ class MeetingService : Service() {
                 appendWords(words)
                 transcribedUpTo = end
                 recent = (recent + words).takeLast(RECENT_WORDS)
-                Log.i(Config.TAG, "Porada: přepsáno ${(end - from) / SAMPLE_RATE} s za ${(System.currentTimeMillis() - started) / 1000} s, ${words.size} slov")
+                Log.i(Config.TAG, "Meeting: transcribed ${(end - from) / SAMPLE_RATE} s in ${(System.currentTimeMillis() - started) / 1000} s, ${words.size} words")
             }
             owed.remove(end)
         }
@@ -271,29 +276,27 @@ class MeetingService : Service() {
             transcribeUpTo(to)
             val question = questionAfterWake(wakeEndS)
             when {
-                question == null -> Log.i(Config.TAG, "Porada: v přepisu „${Config.WAKE_LABEL}“ není, mlčím.")
-                question.isBlank() -> Log.i(Config.TAG, "Porada: otázka je prázdná, mlčím.")
+                question == null -> Log.i(Config.TAG, "Meeting: \"${Config.WAKE_LABEL}\" is not in the transcript, staying silent.")
+                question.isBlank() -> Log.i(Config.TAG, "Meeting: the question is empty, staying silent.")
                 isEndRequest(question) -> requestFinish("„$question“")
                 else -> {
-                    Log.i(Config.TAG, "Porada: otázka „$question“")
+                    Log.i(Config.TAG, "Meeting: question \"$question\"")
                     val reply = answerer.answer(transcript.readText(), question)
                     if (reply == null) {
-                        Log.i(Config.TAG, "Porada: Claude usoudil, že to nebyla otázka.")
+                        Log.i(Config.TAG, "Meeting: Claude judged it was not a question.")
                     } else {
-                        appendLine("Otázka pro Clauda: $question")
+                        appendLine("${labels.question} $question")
                         appendLine("Claude: $reply")
                         Meeting.answered(question, reply)
                         speaker.say(reply)
                     }
                 }
             }
-        } catch (e: TranscribeFailed) {
-            speaker.say(e.message.orEmpty())
-        } catch (e: AnswerFailed) {
-            speaker.say(e.message.orEmpty())
+        } catch (e: MeetingFailure) {
+            speaker.say(describe(e))
         } catch (e: Exception) {
-            Log.e(Config.TAG, "Porada: odpověď spadla", e)
-            speaker.say("Něco se pokazilo, zkus to znovu.")
+            Log.e(Config.TAG, "Meeting: answering crashed", e)
+            speaker.say(getString(R.string.meeting_error_generic))
         } finally {
             quietUntil = wav.samples + SAMPLE_RATE
             busy = false
@@ -309,15 +312,15 @@ class MeetingService : Service() {
         return recent.drop(i + 1).joinToString(" ") { it.text }.trim().trimStart(',', '.', ' ')
     }
 
-    // Short only: "kdy je konec porady" is a question, not an order.
+    // Short only: "when does the meeting end" is a question, not an order.
     private fun isEndRequest(question: String) =
         question.split(Regex("\\s+")).size <= END_MAX_WORDS && END_REQUEST.containsMatchIn(question)
 
     private fun requestFinish(why: String) {
         if (finishing) return
         finishing = true
-        Log.i(Config.TAG, "Porada: konec, $why")
-        speaker.announce("Končím poradu a píšu shrnutí.")
+        Log.i(Config.TAG, "Meeting: ending, $why")
+        speaker.announce(getString(R.string.meeting_announce_end))
         running = false
     }
 
@@ -328,25 +331,26 @@ class MeetingService : Service() {
             try {
                 transcribeUpTo(total)
             } catch (e: Exception) {
-                problem = "Přepis není celý: ${e.message}"
+                problem = getString(R.string.meeting_transcript_incomplete, describe(e))
             }
             val summary = try {
-                if (transcript.readLines().none { it.startsWith("[") }) throw AnswerFailed("Přepis je prázdný.")
+                if (transcript.readLines().none { it.startsWith("[") }) throw AnswerFailed(R.string.meeting_transcript_empty)
                 answerer.summarize(transcript.readText())
             } catch (e: Exception) {
-                Log.w(Config.TAG, "Porada: shrnutí selhalo", e)
-                problem = problem ?: e.message
+                Log.w(Config.TAG, "Meeting: the summary failed", e)
+                problem = problem ?: describe(e)
                 null
             }
-            File(dir, "shrnuti.md").writeText(
-                "# Shrnutí porady ${TITLE.format(Date(startedAt))}\n\n" + (summary ?: "Shrnutí chybí: $problem") + "\n"
+            File(dir, "summary.md").writeText(
+                "# ${getString(R.string.meeting_summary_title, title())}\n\n" +
+                    (summary ?: getString(R.string.meeting_summary_missing, problem.orEmpty())) + "\n"
             )
-            Log.i(Config.TAG, "Porada: uloženo do ${dir.absolutePath}")
+            Log.i(Config.TAG, "Meeting: saved to ${dir.absolutePath}")
             speaker.say(
                 when {
-                    summary == null -> "Porada je nahraná, shrnutí chybí. $problem"
-                    problem != null -> "Porada skončila. Shrnutí je uložené, ale přepis není celý."
-                    else -> "Porada skončila. Shrnutí je uložené v telefonu."
+                    summary == null -> getString(R.string.meeting_say_summary_missing, problem.orEmpty())
+                    problem != null -> getString(R.string.meeting_say_done_incomplete)
+                    else -> getString(R.string.meeting_say_done)
                 }
             )
             Meeting.ended()
@@ -385,25 +389,32 @@ class MeetingService : Service() {
         transcript.appendText("[${CLOCK.format(Date(at))}] $text\n")
     }
 
-    // Scribe numbers speakers per request, so "Mluvčí 1" in two pieces need not be the same person.
+    // Scribe numbers speakers per request, so "Speaker 1" in two pieces need not be the same person.
     private fun speakerLabel(id: String?) =
-        id?.substringAfterLast('_')?.toIntOrNull()?.let { "Mluvčí ${it + 1}" } ?: "Řeč"
+        id?.substringAfterLast('_')?.toIntOrNull()?.let { getString(R.string.meeting_speaker, it + 1) } ?: getString(R.string.meeting_speech)
+
+    private val labels by lazy { MeetingLabels.of(this) }
+
+    private fun describe(e: Exception) = if (e is MeetingFailure) getString(e.res, *e.args) else e.message.orEmpty()
+
+    // Device locale, read per use: the phone's language can change between meetings.
+    private fun title() = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(startedAt))
 
     private fun normalize(text: String) = text.lowercase(Locale.ROOT).trim { !it.isLetter() }.removeSuffix("'s")
 
     private fun notification(): Notification {
         val nm = getSystemService(NotificationManager::class.java)
-        nm.createNotificationChannel(NotificationChannel(CHANNEL, "Porada", NotificationManager.IMPORTANCE_LOW))
+        nm.createNotificationChannel(NotificationChannel(CHANNEL, getString(R.string.meeting_notification_channel), NotificationManager.IMPORTANCE_LOW))
         val stop = PendingIntent.getService(
             this, 0, Intent(this, MeetingService::class.java).setAction(ACTION_STOP), PendingIntent.FLAG_IMMUTABLE,
         )
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
         return Notification.Builder(this, CHANNEL)
             .setSmallIcon(android.R.drawable.presence_audio_online)
-            .setContentTitle("Nahrávám poradu")
-            .setContentText("Konec: „${Config.WAKE_LABEL}, end the meeting“")
+            .setContentTitle(getString(R.string.meeting_notification_title))
+            .setContentText(getString(R.string.meeting_notification_text, Config.WAKE_LABEL))
             .setContentIntent(open)
-            .addAction(Notification.Action.Builder(Icon.createWithResource(this, android.R.drawable.ic_media_pause), "Ukončit poradu", stop).build())
+            .addAction(Notification.Action.Builder(Icon.createWithResource(this, android.R.drawable.ic_media_pause), getString(R.string.meeting_notification_stop), stop).build())
             .setOngoing(true)
             .build()
     }
@@ -551,14 +562,13 @@ class MeetingService : Service() {
         )
 
         private const val NOTIFICATION_ID = 7
-        private const val CHANNEL = "porada"
+        private const val CHANNEL = "meeting"
         private const val ACTION_STOP = "stop"
-        private const val EXTRA_FAKE = "nanecisto"
-        private const val EXTRA_SOURCE = "soubor"
-        private const val EXTRA_SPEED = "rychlost"
+        private const val EXTRA_FAKE = "dry_run"
+        private const val EXTRA_SOURCE = "file"
+        private const val EXTRA_SPEED = "speed"
 
         private val FOLDER = SimpleDateFormat("yyyy-MM-dd-HHmm", Locale.ROOT)
-        private val TITLE = SimpleDateFormat("d. M. yyyy H:mm", Locale("cs"))
         private val CLOCK = SimpleDateFormat("HH:mm:ss", Locale.ROOT)
 
         /**
@@ -587,12 +597,12 @@ class MeetingService : Service() {
                 val t = if (testKey != null) ScribeTranscriber(testKey) else ScribeTranscriber()
                 t.transcribe(Wav.header(SAMPLE_RATE.toLong()) + ByteArray(SAMPLE_RATE * 2)).size
             }
-            Log.i(Config.TAG, "Porada: zkouška přepisu: ${scribe.fold({ "funguje, $it slov" }, { "${it.javaClass.simpleName}: ${it.message}" })}")
+            Log.i(Config.TAG, "Meeting: transcription check: ${scribe.fold({ "works, $it words" }, { "${it.javaClass.simpleName}: ${it.message}" })}")
             val claude = runCatching {
                 val a = if (testKey != null) ClaudeAnswerer(testKey) else ClaudeAnswerer()
-                a.answer("[10:00:00] Mluvčí 1: Zkouška.", "Řekni jen slovo funguje.")
+                a.answer("[10:00:00] Speaker 1: Test.", "Say just the word works.")
             }
-            Log.i(Config.TAG, "Porada: zkouška Clauda: ${claude.fold({ "odpověděl „$it“" }, { "${it.javaClass.name}: ${it.message}" })}")
+            Log.i(Config.TAG, "Meeting: Claude check: ${claude.fold({ "answered \"$it\"" }, { "${it.javaClass.name}: ${it.message}" })}")
         }
     }
 }

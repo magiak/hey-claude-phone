@@ -1,6 +1,7 @@
 package cz.magiak.asistent.meeting
 
 import cz.magiak.asistent.BuildConfig
+import cz.magiak.asistent.R
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
@@ -16,12 +17,13 @@ data class Word(val text: String, val start: Double, val end: Double, val speake
     fun shifted(by: Double) = copy(start = start + by, end = end + by)
 }
 
+class TranscribeFailed(res: Int, vararg args: Any) : MeetingFailure(res, *args)
+
 interface Transcriber {
     /** [wav] is a whole WAV file, 16 kHz mono. */
     fun transcribe(wav: ByteArray): List<Word>
 }
 
-class TranscribeFailed(message: String) : Exception(message)
 
 class ScribeTranscriber(private val key: String = BuildConfig.ELEVENLABS_KEY) : Transcriber {
 
@@ -31,28 +33,28 @@ class ScribeTranscriber(private val key: String = BuildConfig.ELEVENLABS_KEY) : 
         .readTimeout(180, TimeUnit.SECONDS)
         .build()
 
-    // No language_code: Scribe detects it, and his meetings mix Czech and English.
+    // No language_code: Scribe detects it, and his meetings mix languages.
     override fun transcribe(wav: ByteArray): List<Word> {
-        if (key.isBlank()) throw TranscribeFailed("Chybí klíč pro přepis.")
+        if (key.isBlank()) throw TranscribeFailed(R.string.meeting_no_key_scribe)
         val body = MultipartBody.Builder().setType(MultipartBody.FORM)
             .addFormDataPart("model_id", "scribe_v2")
             .addFormDataPart("diarize", "true")
             .addFormDataPart("timestamps_granularity", "word")
             .addFormDataPart("tag_audio_events", "false")
-            .addFormDataPart("file", "porada.wav", wav.toRequestBody("audio/wav".toMediaType()))
+            .addFormDataPart("file", "meeting.wav", wav.toRequestBody("audio/wav".toMediaType()))
             .build()
         val request = Request.Builder().url(URL).header("xi-api-key", key).post(body).build()
         try {
             http.newCall(request).execute().use { response ->
                 val text = response.body?.string().orEmpty()
-                if (!response.isSuccessful) throw TranscribeFailed("Přepis selhal (${response.code}).")
+                if (!response.isSuccessful) throw TranscribeFailed(R.string.meeting_scribe_failed, response.code)
                 val words = JSONObject(text).optJSONArray("words") ?: return emptyList()
                 return (0 until words.length()).map(words::getJSONObject)
                     .filter { it.optString("type") == "word" }
                     .map { Word(it.getString("text"), it.optDouble("start"), it.optDouble("end"), it.optString("speaker_id").ifBlank { null }) }
             }
         } catch (e: java.io.IOException) {
-            throw TranscribeFailed("Přepis nejde, telefon je asi bez internetu.")
+            throw TranscribeFailed(R.string.meeting_scribe_offline)
         }
     }
 

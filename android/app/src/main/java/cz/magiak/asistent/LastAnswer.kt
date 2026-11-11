@@ -11,7 +11,7 @@ import android.view.accessibility.AccessibilityNodeInfo
 data class LastAnswer(val question: String, val answer: String, val at: Long) {
 
     companion object {
-        private const val PREFS = "posledni"
+        private const val PREFS = "last_answer"
 
         fun load(context: Context): LastAnswer? {
             val p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -60,11 +60,12 @@ data class LastAnswer(val question: String, val answer: String, val at: Long) {
         }
 
         // Claude app chrome that sits at the left edge like an answer; it filled the card after a
-        // volume call on 2026-11-09: "Voice chat ended", "46s", tool "Hlasitost", connector
+        // volume call on 2026-11-09: "Voice chat ended", "46s", tool "Volume", connector
         // initial "D", the "Claude is AI…" footer.
         private val DURATION = Regex("""^\d+\s?(s|m|min|h)(\s?\d+\s?s)?$""")
-        // Titles of his connector's tools (mcp/Tools.kt), as the app shows them on a tool call.
-        private val TOOL_TITLES = setOf("Hlasitost", "Připravit tisk", "Vytisknout", "Naskenovat", "Porady", "Přepis porady")
+        // Titles of his connector's tools as the Claude app shows them on a tool call; Tools fills this
+        // from the string resources so no Context is needed here.
+        @Volatile var toolTitles: Set<String> = emptySet()
 
         private fun isAppText(text: String) =
             text.length <= 2 ||
@@ -72,6 +73,6 @@ data class LastAnswer(val question: String, val answer: String, val at: Long) {
                 text.startsWith("Claude is AI", ignoreCase = true) ||
                 text.contains("can make mistakes", ignoreCase = true) ||
                 DURATION.matches(text) ||
-                text in TOOL_TITLES
+                text in toolTitles
     }
 }

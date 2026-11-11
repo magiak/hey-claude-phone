@@ -36,15 +36,15 @@ class VoiceRecording(
     @Volatile private var cancelled = false
 
     fun start() {
-        val name = "nahravka-" + SimpleDateFormat("yyyy-MM-dd-HHmm", Locale.US).format(Date())
+        val name = "recording-" + SimpleDateFormat("yyyy-MM-dd-HHmm", Locale.US).format(Date())
         val dir = context.getExternalFilesDir(null) ?: context.filesDir
         Thread({
             // A crash here would take the dashboard down with it.
             runCatching { record(File(dir, "$name.wav"), File(dir, "$name.txt")) }.onFailure {
-                Log.e(Config.TAG, "Nahrávání spadlo", it)
-                main.post { onDone("Nahrávání spadlo: ${it.message}") }
+                Log.e(Config.TAG, "Recording failed", it)
+                main.post { onDone(context.getString(R.string.record_crashed, it.message)) }
             }
-        }, "nahravka").start()
+        }, "recording").start()
     }
 
     fun cancel() {
@@ -55,7 +55,7 @@ class VoiceRecording(
     private fun record(wav: File, marks: File) {
         val recorder = openMic()
         if (recorder == null) {
-            main.post { onDone("Mikrofon se nepodařilo otevřít, nahrávání neběží.") }
+            main.post { onDone(context.getString(R.string.record_mic_failed)) }
             return
         }
         val steps = steps()
@@ -101,9 +101,9 @@ class VoiceRecording(
         log.append("end %.2f\n".format(Locale.US, samples.toDouble() / SAMPLE_RATE))
         writeWavHeader(wav, samples)
         marks.writeText(log.toString())
-        Log.i(Config.TAG, "Nahrávka uložená: ${wav.absolutePath}")
+        Log.i(Config.TAG, "Recording saved: ${wav.absolutePath}")
         main.post {
-            onDone("Hotovo, díky. Vyhodnocuji nahrávku…")
+            onDone(context.getString(R.string.record_done_evaluating))
             replay(context, wav, onDone)
         }
     }
@@ -128,24 +128,24 @@ class VoiceRecording(
     private class Step(val at: Double, val tag: String, val text: String)
 
     // He said the phrase every two seconds through the whole first take (2026-11-08): neither the
-    // flash nor the text told him to say it once, so each prompt now says TEĎ and then tells him to wait.
+    // flash nor the text told him to say it once, so each prompt now says NOW and then tells him to wait.
     private fun steps(): List<Step> {
-        val say = "TEĎ řekni jednou\n„${Config.WAKE_LABEL}“"
-        val wait = "Mlč a počkej, až zase blikne."
+        val say = context.getString(R.string.step_say, Config.WAKE_LABEL)
+        val wait = context.getString(R.string.step_wait)
         return buildList {
-            add(Step(0.0, "start", "Stůj blízko. Až okraje bliknou zeleně, řekni jednou „${Config.WAKE_LABEL}“."))
+            add(Step(0.0, "start", context.getString(R.string.step_start, Config.WAKE_LABEL)))
             for (i in 1..5) {
                 val at = 3.0 + (i - 1) * PROMPT_S
-                add(Step(at, "near$i", "$say\n($i z 10)"))
+                add(Step(at, "near$i", "$say\n${context.getString(R.string.step_counter, i)}"))
                 add(Step(at + 2.5, "wait$i", wait))
             }
-            add(Step(28.0, "move", "Teď odejdi 2 až 3 metry dál, kam budeš mluvit z gauče nebo od stolu. Počkej tam na bliknutí."))
+            add(Step(28.0, "move", context.getString(R.string.step_move)))
             for (i in 6..10) {
                 val at = 35.0 + (i - 6) * PROMPT_S
-                add(Step(at, "far$i", "$say\n($i z 10)"))
+                add(Step(at, "far$i", "$say\n${context.getString(R.string.step_counter, i)}"))
                 add(Step(at + 2.5, "wait$i", wait))
             }
-            add(Step(TALK_S, "talk", "Konec. Teď půl minuty normálně mluv česky, o čemkoli, jen ne o Claudovi."))
+            add(Step(TALK_S, "talk", context.getString(R.string.step_talk)))
         }
     }
 
@@ -176,20 +176,19 @@ class VoiceRecording(
             val main = Handler(Looper.getMainLooper())
             SpeechModel.get(context) { result ->
                 val model = result.getOrElse {
-                    onDone("Model řeči se nenačetl, nahrávku nevyhodnotím.")
+                    onDone(context.getString(R.string.record_model_failed))
                     return@get
                 }
                 Thread({
                     val text = runCatching {
-                        val (asked, talk) = decode(model, wav, File(wav.path.removeSuffix(".wav") + "-telefon.txt"))
-                        "Hotovo, díky. Telefon na nahrávce poznal „${Config.WAKE_LABEL}“ ${asked}× z 10, " +
-                            "při běžné řeči se spustil ${talk}×."
+                        val (asked, talk) = decode(model, wav, File(wav.path.removeSuffix(".wav") + "-phone.txt"))
+                        context.getString(R.string.record_replay_result, Config.WAKE_LABEL, asked, talk)
                     }.getOrElse {
-                        Log.e(Config.TAG, "Přehrávka spadla", it)
-                        "Nahrávku se nepodařilo vyhodnotit: ${it.message}"
+                        Log.e(Config.TAG, "Replay failed", it)
+                        context.getString(R.string.record_replay_failed, it.message)
                     }
                     main.post { onDone(text) }
-                }, "prehravka").start()
+                }, "replay").start()
             }
         }
 
@@ -226,7 +225,7 @@ class VoiceRecording(
                 take(recognizer.finalResult)
             }
             out.writeText(lines.toString())
-            Log.i(Config.TAG, "Přehrávka: ${asked}× z 10, při řeči ${talk}×, ${out.absolutePath}")
+            Log.i(Config.TAG, "Replay: $asked of 10, during talk $talk, ${out.absolutePath}")
             return asked to talk
         }
     }

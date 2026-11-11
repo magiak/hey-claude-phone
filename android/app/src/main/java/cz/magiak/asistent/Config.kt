@@ -3,14 +3,14 @@ package cz.magiak.asistent
 import android.graphics.Color
 
 object Config {
-    const val TAG = "Asistent"
+    const val TAG = "Assistant"
 
     const val CLAUDE_PACKAGE = "com.anthropic.claude"
     // An app link the Claude app handles itself (its manifest, app 1.261104.19): each call starts
     // in an empty chat instead of continuing the last one (his wish, 2026-11-09).
     const val NEW_CHAT_URL = "https://claude.ai/new"
 
-    // Tuning the wake word: the dashboard in trial mode and `adb logcat -s Asistent` show every heard word
+    // Tuning the wake word: the dashboard in trial mode and `adb logcat -s Assistant` show every heard word
     // with its confidence. The recognizer may only output these words; decoys give similar
     // sounds somewhere else to land, so not every "klaud"-like noise becomes "claude".
     // Two words in a row, each above the bar: one syllable mixed too easily with "cloud" and the

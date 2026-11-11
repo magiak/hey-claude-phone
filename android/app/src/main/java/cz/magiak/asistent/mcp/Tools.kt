@@ -9,10 +9,13 @@ import android.util.Log
 import android.view.Display
 import cz.magiak.asistent.Config
 import cz.magiak.asistent.CustomScreen
+import cz.magiak.asistent.Language
+import cz.magiak.asistent.LastAnswer
 import cz.magiak.asistent.R
 import cz.magiak.asistent.meeting.MeetingArchive
 import org.json.JSONArray
 import org.json.JSONObject
+import java.util.Locale
 import java.util.UUID
 import kotlin.math.roundToInt
 
@@ -23,12 +26,24 @@ class Tools(private val context: Context) {
     private val printer = Printer()
     private val tickets = mutableMapOf<String, Printer.Prepared>()
 
+    init {
+        // LastAnswer must skip these titles when it reads the chat; the Claude app shows the announced (localized) text.
+        // Every language: the chat keeps titles announced before a language switch.
+        LastAnswer.toolTitles = Language.CODES.flatMap { code ->
+            val localized = Language.forCode(context, code)
+            TITLES.map(localized::getString)
+        }.toSet()
+    }
+
+    // The phone's language, for what Claude produces on the display itself.
+    private val language get() = Locale.getDefault().getDisplayLanguage(Locale.ENGLISH)
+
     fun list(): JSONArray = JSONArray()
         .put(
             tool(
-                "set_volume", "Hlasitost",
-                "Nastaví hlasitost telefonu, přes který s uživatelem mluvíš, včetně tvého hlasu. " +
-                    "level = 0 až 100 %, nebo step = up / down o desetinu. Bez parametrů jen řekne současnou hlasitost.",
+                "set_volume", R.string.tool_set_volume,
+                "Sets the volume of the phone you are talking to the user through, including your own voice. " +
+                    "level = 0 to 100 %, or step = up / down by a tenth. Without parameters it only reports the current volume.",
                 JSONObject()
                     .put("level", JSONObject().put("type", "integer").put("minimum", 0).put("maximum", 100))
                     .put("step", JSONObject().put("type", "string").put("enum", JSONArray().put("up").put("down"))),
@@ -36,10 +51,10 @@ class Tools(private val context: Context) {
         )
         .put(
             tool(
-                "prepare_print", "Připravit tisk",
-                "První krok tisku na domácí tiskárně. Pošli prostý text bez Markdownu (recept, seznam, poznámku). " +
-                    "Vrátí počet stran, stav tiskárny a inkoustu a tiket. Pak uživateli řekni počet stran a stav inkoustu " +
-                    "a zeptej se, jestli tisknout a kolik kopií. Když je některý inkoust na 0 %, řekni to a tiskni jen na jeho výslovné ano.",
+                "prepare_print", R.string.tool_prepare_print,
+                "First step of printing on the home printer. Send plain text without Markdown (a recipe, a list, a note). " +
+                    "Returns the page count, the printer and ink status and a ticket. Then tell the user the page count and ink status " +
+                    "and ask whether to print and how many copies. If any ink is at 0 %, say so and print only on their explicit yes.",
                 JSONObject()
                     .put("text", JSONObject().put("type", "string"))
                     .put("title", JSONObject().put("type", "string")),
@@ -48,8 +63,8 @@ class Tools(private val context: Context) {
         )
         .put(
             tool(
-                "print", "Vytisknout",
-                "Vytiskne dokument připravený nástrojem prepare_print. Volej až po souhlasu uživatele.",
+                "print", R.string.tool_print,
+                "Prints the document prepared by prepare_print. Call it only after the user agrees.",
                 JSONObject()
                     .put("ticket", JSONObject().put("type", "string"))
                     .put("copies", JSONObject().put("type", "integer").put("minimum", 1).put("maximum", 5)),
@@ -58,32 +73,32 @@ class Tools(private val context: Context) {
         )
         .put(
             tool(
-                "scan", "Naskenovat",
-                "Naskenuje papír ze skla domácí tiskárny a vrátí obrázek, abys ho přečetl. " +
-                    "Nejdřív se ujisti, že na skle papír leží. Sken trvá až půl minuty.",
+                "scan", R.string.tool_scan,
+                "Scans the paper on the home printer's glass and returns an image for you to read. " +
+                    "First make sure a paper is lying on the glass. A scan takes up to half a minute.",
                 JSONObject(),
             )
         )
         .put(
             tool(
-                "set_home_screen", "Nastavit obrazovku",
-                "Nastaví domovskou obrazovku telefonu, přes který s uživatelem mluvíš. Displej leží na šířku, " +
-                    "viditelná plocha je asi ${screenSize()}, čte se z pár metrů: velké písmo a málo věcí. " +
-                    "Pošli celý krátký HTML dokument (do 5 000 znaků). Obrazovka zůstane, dokud ji uživatel nechce jinou. " +
-                    "Vždy nejdřív zavolej get_home_screen a uprav, co tam je, i když jsou tam původní hodiny: " +
-                    "uživatel chce svou obrazovku zachovat a jen ji měnit. Bez předlohy (replace: true) pošli stránku, " +
-                    "jen když výslovně chce úplně jinou obrazovku. " +
-                    "Stránka se jen zobrazuje a klepnutí nedostane. Pravý horní roh (70 × 70 px) zakrývá ikona nastavení. " +
-                    "Živá data: await asistent.json(url) a await asistent.text(url) stáhnou veřejnou adresu přes telefon, " +
-                    "bez omezení CORS. Bez klíče fungují třeba api.coingecko.com (kryptoměny) a " +
-                    "query1.finance.yahoo.com/v8/finance/chart/TICKER (akcie). Obnovuj nejvýš jednou za minutu " +
-                    "a při chybě nech poslední hodnotu s časem, kdy platila. Data z tvých jiných nástrojů telefon sám nestáhne: " +
-                    "vlož je jako hodnoty a napiš, k jaké chvíli platí. asistent.lastAnswer() vrátí poslední otázku a odpověď " +
-                    "z hovoru jako {question, answer, at} nebo null. Hodiny a datum počítej v JavaScriptu, česky. " +
-                    "Barvy současného vzhledu telefonu: ${CustomScreen.palette(context)}, velká čísla patkovým písmem. " +
-                    "Obrazovka se ukáže, až hovor skončí. Mluv co nejméně: neopakuj, co uživatel chce, " +
-                    "neohlašuj čtení ani zápis a nástroje volej mlčky. Po uložení řekni jen „Hotovo“ a pár slov, " +
-                    "kde to je. Kód nečti nahlas.",
+                "set_home_screen", R.string.tool_set_home_screen,
+                "Sets the home screen of the phone you are talking to the user through. The display lies in landscape, " +
+                    "the visible area is about ${screenSize()}, read from a few metres away: large type and few things. " +
+                    "Send one complete short HTML document (up to 5,000 characters). The screen stays until the user wants another one. " +
+                    "Always call get_home_screen first and modify what is there, even if it is the original clock: " +
+                    "the user wants to keep their screen and only change it. Without a base (replace: true) send a page " +
+                    "only when they explicitly want a completely different screen. " +
+                    "The page is display-only and receives no taps. The top right corner (70 × 70 px) is covered by the settings icon. " +
+                    "Live data: await asistent.json(url) and await asistent.text(url) fetch a public address through the phone, " +
+                    "without CORS limits. Without a key, for example api.coingecko.com (crypto) and " +
+                    "query1.finance.yahoo.com/v8/finance/chart/TICKER (stocks) work. Refresh at most once a minute " +
+                    "and on error keep the last value with the time it was valid. The phone cannot fetch data from your other tools: " +
+                    "paste it in as values and write the moment they are valid for. asistent.lastAnswer() returns the last question and answer " +
+                    "of the call as {question, answer, at} or null. Compute the clock and date in JavaScript, in $language. " +
+                    "Colors of the phone's current look: ${CustomScreen.palette(context)}, big numbers in a serif face. " +
+                    "The screen appears once the call ends. Speak as little as possible: do not repeat what the user wants, " +
+                    "do not announce reading or writing, and call tools silently. After saving say only \"Done\" and a few words " +
+                    "on where it is. Do not read the code aloud.",
                 JSONObject()
                     .put("html", JSONObject().put("type", "string"))
                     .put("replace", JSONObject().put("type", "boolean")),
@@ -92,32 +107,32 @@ class Tools(private val context: Context) {
         )
         .put(
             tool(
-                "get_home_screen", "Přečíst obrazovku",
-                "Vrátí HTML současné domovské obrazovky telefonu, abys ji upravil nástrojem set_home_screen. " +
-                    "Když jsou na ní původní hodiny, vrátí jejich kopii jako stránku. Volej před každou změnou obrazovky, mlčky.",
+                "get_home_screen", R.string.tool_get_home_screen,
+                "Returns the HTML of the phone's current home screen so you can modify it with set_home_screen. " +
+                    "If the original clock is on it, returns a copy of it as a page. Call it before every screen change, silently.",
                 JSONObject(),
             )
         )
         .put(
             tool(
-                "reset_home_screen", "Vrátit hodiny",
-                "Vrátí na domovskou obrazovku telefonu původní hodiny s poslední odpovědí místo vlastní stránky.",
+                "reset_home_screen", R.string.tool_reset_home_screen,
+                "Puts the original clock with the last answer back on the phone's home screen in place of the custom page.",
                 JSONObject(),
             )
         )
         .put(
             tool(
-                "find_meetings", "Porady",
-                "Porady nahrané na telefonu: shrnutí s rozhodnutími a úkoly. Bez query vrátí poslední porady, " +
-                    "s query ty, kde to slovo zaznělo, i s řádky přepisu. Hledá přesný text, zkus i jiný tvar slova. " +
-                    "Odpovídej z toho stručně, bez komentování hledání.",
+                "find_meetings", R.string.tool_find_meetings,
+                "Meetings recorded on the phone: summaries with decisions and tasks. Without query returns the latest meetings, " +
+                    "with query those where the word was said, including transcript lines. It matches exact text, so also try another form of the word. " +
+                    "Answer briefly from it, without commenting on the search.",
                 JSONObject().put("query", JSONObject().put("type", "string")),
             )
         )
         .put(
             tool(
-                "read_meeting", "Přepis porady",
-                "Celý přepis jedné porady podle id z find_meetings. Je dlouhý, volej ho jen, když shrnutí nestačí.",
+                "read_meeting", R.string.tool_read_meeting,
+                "The full transcript of one meeting by the id from find_meetings. It is long, so call it only when the summary is not enough.",
                 JSONObject().put("id", JSONObject().put("type", "string")),
                 required = listOf("id"),
             )
@@ -130,11 +145,11 @@ class Tools(private val context: Context) {
         val name = params.optString("name")
         val args = params.optJSONObject("arguments") ?: JSONObject()
         val result = try {
-            Log.i(Config.TAG, "Nástroj $name $args")
+            Log.i(Config.TAG, "Tool $name $args")
             call(name, args)
         } catch (e: Exception) {
-            Log.w(Config.TAG, "Nástroj $name selhal", e)
-            textResult("Nepovedlo se: ${e.message}", error = true)
+            Log.w(Config.TAG, "Tool $name failed", e)
+            textResult("Failed: ${e.message}", error = true)
         }
         return JSONObject().put("jsonrpc", "2.0").put("id", message.opt("id")).put("result", result).toString()
     }
@@ -148,21 +163,21 @@ class Tools(private val context: Context) {
         "get_home_screen" -> {
             readRevision = CustomScreen.revision
             textResult(
-                "Nic uživateli neříkej, uprav stránku a rovnou zavolej set_home_screen.\n\n" + (
+                "Tell the user nothing, modify the page and call set_home_screen right away.\n\n" + (
                     CustomScreen.load(context)
-                        ?: ("Na displeji jsou původní hodiny s poslední odpovědí. Tady je jejich kopie jako stránka, " +
-                            "přidej nebo změň v ní, co uživatel chce:\n\n" + CustomScreen.original(context))
+                        ?: ("The display shows the original clock with the last answer. Here is a copy of it as a page, " +
+                            "add or change in it what the user wants:\n\n" + CustomScreen.original(context))
                     )
             )
         }
         "reset_home_screen" -> {
             CustomScreen.reset(context)
-            textResult("Hodiny se vrátí po konci hovoru. Uživateli řekni jen „Hotovo“.")
+            textResult("The clock returns when the call ends. Tell the user only \"Done\".")
         }
         "find_meetings" -> textResult(MeetingArchive.find(context, args.optString("query")))
         "read_meeting" -> MeetingArchive.transcript(context, args.getString("id"))?.let { textResult(it) }
-            ?: textResult("Poradu ${args.getString("id")} neznám, vezmi id z find_meetings.", error = true)
-        else -> textResult("Neznámý nástroj $name.", error = true)
+            ?: textResult("No meeting with id ${args.getString("id")}, take the id from find_meetings.", error = true)
+        else -> textResult("Unknown tool $name.", error = true)
     }
 
     // The description alone did not hold: asked for one more thing, Claude rewrote his page from
@@ -173,16 +188,16 @@ class Tools(private val context: Context) {
     // tiring (2026-11-10). Results are what Claude reads right before speaking, so they say what to say.
     private fun setScreen(html: String, replace: Boolean): JSONObject {
         if (!replace && readRevision != CustomScreen.revision) return textResult(
-            "Neuloženo. Uživateli to neříkej: zavolej get_home_screen, uprav současnou obrazovku a pošli ji znovu. " +
-                "replace: true pošli, jen když výslovně chce úplně jinou.",
+            "Not saved. Do not tell the user: call get_home_screen, modify the current screen and send it again. " +
+                "Send replace: true only when they explicitly want a completely different one.",
             error = true,
         )
-        if (!html.contains("<")) return textResult("Pošli celý HTML dokument.", error = true)
-        if (html.length > MAX_SCREEN_CHARS) return textResult("Stránka je moc dlouhá, zkrať ji pod $MAX_SCREEN_CHARS znaků.", error = true)
+        if (!html.contains("<")) return textResult("Send a complete HTML document.", error = true)
+        if (html.length > MAX_SCREEN_CHARS) return textResult("The page is too long, shorten it below $MAX_SCREEN_CHARS characters.", error = true)
         CustomScreen.save(context, html)
         // What Claude just sent is the page now, so more tweaks in the same call need no new read.
         readRevision = CustomScreen.revision
-        return textResult("Uloženo, ukáže se po konci hovoru. Uživateli řekni jen „Hotovo“ a pár slov, kde to je, nic víc.")
+        return textResult("Saved, it appears when the call ends. Tell the user only \"Done\" and a few words on where it is, nothing more.")
     }
 
     // The page fills the holder's window, which hides the notch strip and a thin edge (dimens.xml).
@@ -211,8 +226,8 @@ class Tools(private val context: Context) {
         }
         if (target != null) audio.setStreamVolume(stream, (target.coerceIn(0, 100) * max / 100.0).roundToInt(), 0)
         val percent = audio.getStreamVolume(stream) * 100 / max
-        Log.i(Config.TAG, "Hlasitost $percent % (${audio.getStreamVolume(stream)}/$max)")
-        return "Hlasitost je $percent %."
+        Log.i(Config.TAG, "Volume $percent % (${audio.getStreamVolume(stream)}/$max)")
+        return "The volume is $percent %."
     }
 
     private fun preparePrint(args: JSONObject): JSONObject {
@@ -221,15 +236,15 @@ class Tools(private val context: Context) {
         val ticket = UUID.randomUUID().toString().take(8)
         synchronized(tickets) { tickets[ticket] = prepared }
         return textResult(
-            "Stran: ${prepared.pages}. Tiskárna: ${status.state}. Inkoust: ${status.ink}. Tiket: $ticket. " +
-                "Řekni uživateli počet stran a stav inkoustu a tiskni až po jeho souhlasu."
+            "Pages: ${prepared.pages}. Printer: ${status.state}. Ink: ${status.ink}. Ticket: $ticket. " +
+                "Tell the user the page count and ink status and print only after they agree."
         )
     }
 
     private fun print(args: JSONObject): JSONObject {
         val ticket = args.getString("ticket")
         val prepared = synchronized(tickets) { tickets.remove(ticket) }
-            ?: return textResult("Tiket $ticket neznám. Zavolej znovu prepare_print.", error = true)
+            ?: return textResult("Unknown ticket $ticket. Call prepare_print again.", error = true)
         return textResult(printer.print(prepared, args.optInt("copies", 1).coerceIn(1, 5)))
     }
 
@@ -241,12 +256,12 @@ class Tools(private val context: Context) {
                     JSONObject().put("type", "image").put("mimeType", "image/jpeg")
                         .put("data", Base64.encodeToString(jpeg, Base64.NO_WRAP))
                 )
-                .put(JSONObject().put("type", "text").put("text", "Sken skla."))
+                .put(JSONObject().put("type", "text").put("text", "Scan of the glass."))
         )
     }
 
-    private fun tool(name: String, title: String, description: String, properties: JSONObject, required: List<String> = emptyList()) =
-        JSONObject().put("name", name).put("title", title).put("description", description).put(
+    private fun tool(name: String, title: Int, description: String, properties: JSONObject, required: List<String> = emptyList()) =
+        JSONObject().put("name", name).put("title", context.getString(title)).put("description", description).put(
             "inputSchema", JSONObject().put("type", "object").put("properties", properties)
                 .apply { if (required.isNotEmpty()) put("required", JSONArray(required)) }
         )
@@ -259,5 +274,11 @@ class Tools(private val context: Context) {
         const val VOLUME_STEP = 0.1
         // The description asks for 5 000 (voice mode is silent while it writes); this only stops a runaway page.
         const val MAX_SCREEN_CHARS = 60_000
+
+        val TITLES = listOf(
+            R.string.tool_set_volume, R.string.tool_prepare_print, R.string.tool_print, R.string.tool_scan,
+            R.string.tool_set_home_screen, R.string.tool_get_home_screen, R.string.tool_reset_home_screen,
+            R.string.tool_find_meetings, R.string.tool_read_meeting,
+        )
     }
 }

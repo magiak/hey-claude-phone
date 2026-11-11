@@ -8,6 +8,7 @@ object UserSettings {
     private const val NEW_CHAT = "new_chat"
     private const val CALL_IDLE_S = "call_idle_s"
     private const val DARK = "dark"
+    private const val LANGUAGE = "language"
 
     // 15 s of quiet is plenty, a minute felt long (his call, 2026-11-09).
     val CALL_IDLE_CHOICES = listOf(15, 30, 60)
@@ -25,6 +26,11 @@ object UserSettings {
     fun dark(c: Context) = prefs(c).getBoolean(DARK, false)
 
     fun setDark(c: Context, value: Boolean) = prefs(c).edit().putBoolean(DARK, value).apply()
+
+    fun language(c: Context) = prefs(c).getString(LANGUAGE, null) ?: Language.CODES.first()
+
+    // commit, not apply: the app restarts its screens right after and reads it back.
+    fun setLanguage(c: Context, value: String) = prefs(c).edit().putString(LANGUAGE, value).commit()
 
     fun reset(c: Context) = prefs(c).edit().clear().apply()
 

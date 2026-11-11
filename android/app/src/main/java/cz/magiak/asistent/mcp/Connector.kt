@@ -16,10 +16,10 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 /**
- * Keeps one WebSocket to the Cloudflare relay (folder `konektor`). Claude's tool calls arrive
+ * Keeps one WebSocket to the Cloudflare relay (folder `connector`). Claude's tool calls arrive
  * through it and are answered here, so the phone itself is the MCP server.
  */
-object Konektor {
+object Connector {
 
     private const val PING_MS = 30_000L
 
@@ -36,14 +36,14 @@ object Konektor {
     @Volatile private var lastPongAt = 0L
 
     fun start(context: Context) {
-        if (BuildConfig.KONEKTOR_URL.isEmpty() || ::tools.isInitialized) return
+        if (BuildConfig.CONNECTOR_URL.isEmpty() || ::tools.isInitialized) return
         tools = Tools(context.applicationContext)
         connect()
         main.postDelayed(keepAlive, PING_MS)
     }
 
     private fun connect() {
-        socket = client.newWebSocket(Request.Builder().url(BuildConfig.KONEKTOR_URL).build(), listener)
+        socket = client.newWebSocket(Request.Builder().url(BuildConfig.CONNECTOR_URL).build(), listener)
     }
 
     // The relay answers "pong" without waking up; silence for three rounds means a dead link
@@ -61,7 +61,7 @@ object Konektor {
         override fun onOpen(webSocket: WebSocket, response: Response) {
             main.post {
                 if (webSocket !== socket) return@post
-                Log.i(Config.TAG, "Konektor připojený.")
+                Log.i(Config.TAG, "Connector connected.")
                 retryMs = 2_000L
                 lastPongAt = System.currentTimeMillis()
                 online = true
@@ -93,7 +93,7 @@ object Konektor {
     private fun lost(webSocket: WebSocket, why: String) {
         main.post {
             if (webSocket !== socket) return@post
-            Log.w(Config.TAG, "Konektor odpojený ($why), znovu za ${retryMs / 1000} s.")
+            Log.w(Config.TAG, "Connector disconnected ($why), retrying in ${retryMs / 1000} s.")
             socket = null
             online = false
             main.postDelayed(::connect, retryMs)

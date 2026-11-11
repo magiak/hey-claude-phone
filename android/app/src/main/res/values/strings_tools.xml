@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Tool titles: shown to the user in the Claude app. -->
+    <string name="tool_set_volume">Volume</string>
+    <string name="tool_prepare_print">Prepare print</string>
+    <string name="tool_print">Print</string>
+    <string name="tool_scan">Scan</string>
+    <string name="tool_set_home_screen">Set screen</string>
+    <string name="tool_get_home_screen">Read screen</string>
+    <string name="tool_reset_home_screen">Restore clock</string>
+    <string name="tool_find_meetings">Meetings</string>
+    <string name="tool_read_meeting">Meeting transcript</string>
+
+    <!-- Meeting archive, answers to find_meetings. -->
+    <string name="meeting_archive_no_summary">No summary yet.</string>
+    <string name="meeting_archive_from_transcript">From the transcript:</string>
+    <string name="meeting_archive_none">No meeting has been recorded yet.</string>
+    <string name="meeting_archive_no_hit">\"%1$s\" was not said in any meeting.</string>
+    <string name="meeting_archive_header">Meeting %1$s (id %1$s):</string>
+
+    <!-- Spoken by the phone. -->
+    <string name="meeting_announce_start">Recording the meeting.</string>
+    <string name="meeting_announce_end">Ending the meeting and writing the summary.</string>
+    <string name="meeting_say_summary_missing">The meeting is recorded, the summary is missing. %1$s</string>
+    <string name="meeting_say_done_incomplete">The meeting is over. The summary is saved, but the transcript is incomplete.</string>
+    <string name="meeting_say_done">The meeting is over. The summary is saved on the phone.</string>
+    <string name="meeting_error_generic">Something went wrong, try again.</string>
+    <string name="meeting_tts_cannot">The phone cannot speak %1$s.</string>
+    <string name="meeting_tts_failed">The phone\'s voice did not start.</string>
+
+    <!-- Dashboard notes. -->
+    <string name="meeting_note_no_model">Without the speech model I cannot hear \"%1$s\", the meeting is only being recorded.</string>
+    <string name="meeting_note_no_mic">The microphone did not open, the meeting was not recorded.</string>
+    <string name="meeting_note_crashed">Recording crashed: %1$s</string>
+    <string name="meeting_note_transcribe_failed">Transcription is not working yet: %1$s Still recording, will try again.</string>
+
+    <!-- Written into the user transcript and summary files. -->
+    <string name="meeting_transcript_title">Meeting %1$s</string>
+    <string name="meeting_summary_title">Meeting summary %1$s</string>
+    <string name="meeting_speaker">Speaker %1$d</string>
+    <string name="meeting_speech">Speech</string>
+    <string name="meeting_question_prefix">Question for Claude:</string>
+    <string name="meeting_decisions">Decisions</string>
+    <string name="meeting_tasks">Tasks</string>
+    <string name="meeting_none_said">Nothing was said.</string>
+    <string name="meeting_transcript_incomplete">The transcript is incomplete: %1$s</string>
+    <string name="meeting_summary_missing">The summary is missing: %1$s</string>
+
+    <!-- Notification. -->
+    <string name="meeting_notification_channel">Meeting</string>
+    <string name="meeting_notification_title">Recording the meeting</string>
+    <string name="meeting_notification_text">To end, say \"%1$s, end the meeting\"</string>
+    <string name="meeting_notification_stop">End meeting</string>
+
+    <!-- Failures, spoken or shown as notes. -->
+    <string name="meeting_transcript_empty">The transcript is empty.</string>
+    <string name="meeting_no_key_claude">The key for Claude is missing.</string>
+    <string name="meeting_refused">Claude refused to answer.</string>
+    <string name="meeting_cut_off">Claude ran out of room to finish.</string>
+    <string name="meeting_no_answer">Claude did not answer.</string>
+    <string name="meeting_no_key_scribe">The key for transcription is missing.</string>
+    <string name="meeting_scribe_failed">Transcription failed (%1$d).</string>
+    <string name="meeting_scribe_offline">Transcription is not possible, the phone is probably offline.</string>
+    <string name="meeting_scribe_not_ready">Transcription is not ready yet.</string>
+
+    <!-- Dry run only (debug): canned answer and summary. -->
+    <string name="meeting_fake_answer">Test answer. I heard the question: %1$s</string>
+    <string name="meeting_fake_summary">Test summary without Claude. The transcript has %1$d lines.</string>
+</resources>

@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="{lang}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+/*colors*/
+html, body { margin: 0; height: 100%; background: var(--surface); color: var(--text); font-family: sans-serif; }
+body { box-sizing: border-box; padding: 40px; display: flex; align-items: center; }
+#clock { font: 100px/1 serif; letter-spacing: -0.02em; color: var(--clock); }
+#date { margin-top: 8px; font-size: 20px; color: var(--muted); }
+#card { flex: 1; margin-left: 40px; background: var(--card); border-radius: 20px; padding: 22px 24px; }
+#title { font-size: 13px; font-weight: 500; letter-spacing: 0.03em; color: var(--title); }
+#question { margin-top: 8px; font-size: 15px; color: var(--muted); -webkit-line-clamp: 2; }
+#answer { margin-top: 10px; font: 19px/1.15 serif; -webkit-line-clamp: 7; }
+.clamp { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; }
+</style>
+</head>
+<body>
+<div>
+  <div id="clock"></div>
+  <div id="date"></div>
+</div>
+<div id="card">
+  <div id="title"></div>
+  <div id="question" class="clamp"></div>
+  <div id="answer" class="clamp"></div>
+</div>
+<script>
+function refresh() {
+  var d = new Date();
+  document.getElementById('clock').textContent = d.toLocaleTimeString('{lang}', { hour: '2-digit', minute: '2-digit' });
+  var day = d.toLocaleDateString('{lang}', { weekday: 'long', day: 'numeric', month: 'long' });
+  document.getElementById('date').textContent = day.charAt(0).toUpperCase() + day.slice(1);
+
+  var last = window.asistent && asistent.lastAnswer();
+  var title = document.getElementById('title'), question = document.getElementById('question'), answer = document.getElementById('answer');
+  if (!last) {
+    title.textContent = '{ask_title}';
+    question.style.display = 'none';
+    answer.textContent = '{ask_hint}';
+    return;
+  }
+  var min = Math.floor((Date.now() - last.at) / 60000);
+  var ago = min < 1 ? '{ago_now}' : min < 60 ? '{ago_min}'.replace('{n}', min) : '{ago_hours}'.replace('{n}', Math.floor(min / 60));
+  title.textContent = '{last_title}'.replace('{ago}', ago);
+  question.style.display = last.question ? '' : 'none';
+  question.textContent = last.question;
+  answer.textContent = last.answer;
+}
+refresh();
+setInterval(refresh, 15000);
+</script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- The holder's window (drzak/drzak.py) hides the notch strip plus 1 mm on the left
+    <!-- The holder's window (holder/holder.py) hides the notch strip plus 1 mm on the left
          and 1 mm on the other sides, so every inset is counted from the visible edge. -->
     <dimen name="hidden_start">40dp</dimen>
     <dimen name="hidden_edge">6dp</dimen>

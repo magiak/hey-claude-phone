@@ -49,9 +49,9 @@ class Printer {
         )
         val code = reply.ints("printer-state").firstOrNull() ?: 0
         val reasons = reply.strings("printer-state-reasons").filter { it != "none" }
-        val state = (STATES[code] ?: "neznámý stav") + if (reasons.isEmpty()) "" else " (${reasons.joinToString()})"
+        val state = (STATES[code] ?: "unknown state") + if (reasons.isEmpty()) "" else " (${reasons.joinToString()})"
         val ink = reply.strings("marker-names").zip(reply.ints("marker-levels"))
-            .joinToString { (name, level) -> "$name $level %" }.ifEmpty { "tiskárna ho neuvádí" }
+            .joinToString { (name, level) -> "$name $level %" }.ifEmpty { "the printer does not report it" }
         return Status(code, state, ink, reply.strings("document-format-supported"))
     }
 
@@ -61,7 +61,7 @@ class Printer {
             "application/pdf" in status.formats -> Prepared("application/pdf", listOf(pdf(pages)), pages.starts.size)
             // One JPEG is one page, so a longer text becomes several jobs.
             "image/jpeg" in status.formats -> Prepared("image/jpeg", jpegs(pages), pages.starts.size)
-            else -> throw IOException("Tiskárna nebere PDF ani JPEG, umí jen: ${status.formats.joinToString()}.")
+            else -> throw IOException("The printer accepts neither PDF nor JPEG, only: ${status.formats.joinToString()}.")
         }
     }
 
@@ -70,13 +70,13 @@ class Printer {
             val reply = ipp(
                 Ipp.PRINT_JOB,
                 listOf(
-                    Ipp.text(Ipp.NAME, "job-name", "Asistent"),
+                    Ipp.text(Ipp.NAME, "job-name", "Assistant"),
                     Ipp.text(Ipp.MIME, "document-format", prepared.format),
                 ),
                 listOf(Ipp.integer("copies", copies)),
                 document,
             )
-            if (!reply.ok) throw IOException("Tiskárna úlohu odmítla (IPP 0x%04x).".format(reply.status))
+            if (!reply.ok) throw IOException("The printer rejected the job (IPP 0x%04x).".format(reply.status))
         }
         // An accepted job is not paper yet: wait until the printer prints and goes idle again.
         var printing = false
@@ -85,27 +85,27 @@ class Printer {
             Thread.sleep(2_000)
             when (status().code) {
                 4 -> printing = true
-                3 -> if (printing) return "Vytištěno."
+                3 -> if (printing) return "Printed."
             }
         }
-        return if (printing) "Tiskárna tiskne." else "Tiskárna úlohu přijala, ale tisknout zatím nezačala."
+        return if (printing) "The printer is printing." else "The printer accepted the job but has not started printing yet."
     }
 
     fun scan(): ByteArray = reach {
         val base = "http://$host/eSCL"
         http.newCall(Request.Builder().url("$base/ScannerCapabilities").build()).execute().use {
-            if (!it.isSuccessful) throw IOException("Tiskárna neumí síťové skenování eSCL (HTTP ${it.code}).")
+            if (!it.isSuccessful) throw IOException("The printer does not support network scanning via eSCL (HTTP ${it.code}).")
         }
         val job = http.newCall(
             Request.Builder().url("$base/ScanJobs")
                 .post(scanSettings().toRequestBody("text/xml".toMediaType())).build()
         ).execute().use {
-            if (it.code != 201) throw IOException("Skener sken odmítl (HTTP ${it.code}).")
-            it.header("Location") ?: throw IOException("Skener nevrátil adresu skenu.")
+            if (it.code != 201) throw IOException("The scanner rejected the scan (HTTP ${it.code}).")
+            it.header("Location") ?: throw IOException("The scanner returned no scan address.")
         }
         val document = Request.Builder().url(absolute(base, job).trimEnd('/') + "/NextDocument").build()
         val jpeg = http.newCall(document).execute().use {
-            if (!it.isSuccessful) throw IOException("Sken se nepovedl stáhnout (HTTP ${it.code}).")
+            if (!it.isSuccessful) throw IOException("Could not download the scan (HTTP ${it.code}).")
             it.body!!.bytes()
         }
         shrink(jpeg)
@@ -158,14 +158,14 @@ class Printer {
                 Ipp.text(Ipp.CHARSET, "attributes-charset", "utf-8"),
                 Ipp.text(Ipp.LANGUAGE, "attributes-natural-language", "en"),
                 Ipp.text(Ipp.URI, "printer-uri", "ipp://$host:631/ipp/print"),
-                Ipp.text(Ipp.NAME, "requesting-user-name", "asistent"),
+                Ipp.text(Ipp.NAME, "requesting-user-name", "assistant"),
             ) + operationAttrs,
             jobAttrs,
         )
         val body = (head + (document ?: ByteArray(0))).toRequestBody("application/ipp".toMediaType())
         return reach {
             http.newCall(Request.Builder().url(ippUrl).post(body).build()).execute().use {
-                if (!it.isSuccessful) throw IOException("Tiskárna odpověděla HTTP ${it.code}.")
+                if (!it.isSuccessful) throw IOException("The printer answered HTTP ${it.code}.")
                 Ipp.decode(it.body!!.bytes())
             }
         }
@@ -173,12 +173,12 @@ class Printer {
 
     // Claude reads this out loud, so an asleep printer must not come back as a socket error.
     private fun <T> reach(block: () -> T): T = try {
-        if (host.isEmpty()) throw IOException("Tiskárna není nastavená, chybí printer.host v local.properties.")
+        if (host.isEmpty()) throw IOException("No printer is set up, printer.host is missing in local.properties.")
         block()
     } catch (e: java.net.ConnectException) {
-        throw IOException("Tiskárna na $host neodpovídá. Je zapnutá?")
+        throw IOException("The printer at $host does not respond. Is it switched on?")
     } catch (e: java.net.SocketTimeoutException) {
-        throw IOException("Tiskárna na $host neodpovídá. Je zapnutá?")
+        throw IOException("The printer at $host does not respond. Is it switched on?")
     }
 
     private class Pages(val layout: StaticLayout, val starts: List<Int>)
@@ -239,7 +239,7 @@ class Printer {
     }
 
     private companion object {
-        val STATES = mapOf(3 to "nečinná", 4 to "tiskne", 5 to "zastavená")
+        val STATES = mapOf(3 to "idle", 4 to "printing", 5 to "stopped")
 
         // A4 in PostScript points, 2 cm margins.
         const val PAGE_W = 595

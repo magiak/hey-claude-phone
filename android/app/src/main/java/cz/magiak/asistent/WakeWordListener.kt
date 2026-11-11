@@ -34,7 +34,7 @@ class WakeWordListener(
     fun start() {
         if (running) return
         running = true
-        onStatus("Načítám model řeči…")
+        onStatus(context.getString(R.string.speech_model_loading))
         SpeechModel.get(context, ::onModel)
     }
 
@@ -54,8 +54,8 @@ class WakeWordListener(
 
     private fun onModel(result: Result<Model>) {
         result.onSuccess(::listen).onFailure { error ->
-            Log.e(Config.TAG, "Model řeči se nenačetl", error)
-            onStatus("Model řeči se nenačetl: ${error.message}")
+            Log.e(Config.TAG, "Speech model failed to load", error)
+            onStatus(context.getString(R.string.speech_model_failed, error.message))
             retryLater()
         }
     }
@@ -65,7 +65,7 @@ class WakeWordListener(
         if (!running || service != null) return
         recognizer = Recognizer(model, SAMPLE_RATE, grammar()).apply { setWords(true) }
         service = SpeechService(recognizer, SAMPLE_RATE).also { it.startListening(this) }
-        onStatus("Poslouchám")
+        onStatus(context.getString(R.string.listening))
     }
 
     // A wall device has nobody to reopen the app, so a dead mic must heal itself.
@@ -79,7 +79,7 @@ class WakeWordListener(
         val heard = heard(json) ?: return
         retryMs = FIRST_RETRY_MS
         val text = heard.joinToString("  ") { "${it.word} ${"%.2f".format(it.conf)}" }
-        Log.i(Config.TAG, "Slyším: $text")
+        Log.i(Config.TAG, "Heard: $text")
         onHeard(text)
         val at = wakeAt(heard)
         if (at != null) {
@@ -105,8 +105,8 @@ class WakeWordListener(
     override fun onTimeout() {}
 
     override fun onError(exception: Exception) {
-        Log.e(Config.TAG, "Poslouchání spadlo", exception)
-        onStatus("Mikrofon vypadl, zkouším to znovu.")
+        Log.e(Config.TAG, "Listening failed", exception)
+        onStatus(context.getString(R.string.mic_dropped))
         release()
         retryLater()
     }

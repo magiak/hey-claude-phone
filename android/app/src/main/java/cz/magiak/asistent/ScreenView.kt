@@ -39,14 +39,14 @@ class ScreenView(context: Context, private val onFailed: () -> Unit) : WebView(c
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest) = true
 
             override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
-                Log.w(Config.TAG, "Vlastní obrazovka spadla (crash=${detail.didCrash()}).")
+                Log.w(Config.TAG, "Custom screen died (crash=${detail.didCrash()}).")
                 main.post(onFailed)
                 return true
             }
         }
         webChromeClient = object : WebChromeClient() {
             override fun onConsoleMessage(message: ConsoleMessage): Boolean {
-                Log.i(Config.TAG, "Obrazovka: ${message.message()} (řádek ${message.lineNumber()})")
+                Log.i(Config.TAG, "Screen: ${message.message()} (line ${message.lineNumber()})")
                 return true
             }
         }
@@ -62,10 +62,10 @@ class ScreenView(context: Context, private val onFailed: () -> Unit) : WebView(c
         // Fetched natively so the page is not bound by CORS: most price APIs refuse browsers.
         @JavascriptInterface
         fun get(id: String, url: String) {
-            val target = url.toHttpUrlOrNull() ?: return reply(id, false, "Jen adresy http a https.")
+            val target = url.toHttpUrlOrNull() ?: return reply(id, false, context.getString(R.string.bridge_http_only))
             val request = Request.Builder().url(target).header("User-Agent", USER_AGENT).build()
             client.newCall(request).enqueue(object : Callback {
-                override fun onFailure(call: Call, e: IOException) = reply(id, false, e.message ?: "Síť neodpovídá.")
+                override fun onFailure(call: Call, e: IOException) = reply(id, false, e.message ?: context.getString(R.string.bridge_network_down))
 
                 override fun onResponse(call: Call, response: Response) = response.use {
                     if (it.isSuccessful) reply(id, true, it.peekBody(MAX_BYTES).string())

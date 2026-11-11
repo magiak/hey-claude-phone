@@ -3,6 +3,7 @@ package cz.magiak.asistent.meeting
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import cz.magiak.asistent.R
 import java.io.File
 
 /** What the dashboard shows about the meeting; the service writes, the activity reads. */
@@ -64,9 +65,9 @@ object Meeting {
     }
 }
 
-/** Past meetings on the phone, one folder each: zaznam.wav, prepis.md, shrnuti.md. */
+/** Past meetings on the phone, one folder each: audio.wav, transcript.md, summary.md. */
 object MeetingArchive {
-    fun root(context: Context) = File(context.getExternalFilesDir(null), "porady")
+    fun root(context: Context) = File(context.getExternalFilesDir(null), "meetings")
 
     private fun all(context: Context) =
         root(context).listFiles { f -> f.isDirectory }.orEmpty().sortedByDescending { it.name }
@@ -75,18 +76,18 @@ object MeetingArchive {
     fun find(context: Context, query: String): String {
         val q = query.trim()
         val hits = all(context).asSequence().mapNotNull { dir ->
-            val summary = File(dir, "shrnuti.md").takeIf(File::exists)?.readText()?.trim() ?: "Shrnutí ještě není."
+            val summary = File(dir, "summary.md").takeIf(File::exists)?.readText()?.trim() ?: context.getString(R.string.meeting_archive_no_summary)
             if (q.isEmpty()) return@mapNotNull dir to summary
-            val lines = File(dir, "prepis.md").takeIf(File::exists)?.readLines().orEmpty().filter { it.contains(q, ignoreCase = true) }
+            val lines = File(dir, "transcript.md").takeIf(File::exists)?.readLines().orEmpty().filter { it.contains(q, ignoreCase = true) }
             if (lines.isEmpty() && !summary.contains(q, ignoreCase = true)) null
-            else dir to (summary + if (lines.isEmpty()) "" else "\n\nZ přepisu:\n" + lines.take(MAX_LINES).joinToString("\n"))
+            else dir to (summary + if (lines.isEmpty()) "" else "\n\n" + context.getString(R.string.meeting_archive_from_transcript) + "\n" + lines.take(MAX_LINES).joinToString("\n"))
         }.take(if (q.isEmpty()) LATEST else MAX_HITS).toList()
-        if (hits.isEmpty()) return if (q.isEmpty()) "Žádná porada zatím nahraná není." else "„$q“ v žádné poradě nezaznělo."
-        return hits.joinToString("\n\n---\n\n") { (dir, text) -> "Porada ${dir.name} (id ${dir.name}):\n$text" }
+        if (hits.isEmpty()) return context.getString(if (q.isEmpty()) R.string.meeting_archive_none else R.string.meeting_archive_no_hit, q)
+        return hits.joinToString("\n\n---\n\n") { (dir, text) -> "${context.getString(R.string.meeting_archive_header, dir.name)}\n$text" }
     }
 
     fun transcript(context: Context, id: String): String? =
-        all(context).firstOrNull { it.name == id }?.let { File(it, "prepis.md") }?.takeIf(File::exists)?.readText()
+        all(context).firstOrNull { it.name == id }?.let { File(it, "transcript.md") }?.takeIf(File::exists)?.readText()
 
     private const val LATEST = 3
     private const val MAX_HITS = 5
