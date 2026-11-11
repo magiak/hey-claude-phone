@@ -109,8 +109,11 @@ assert HOLE_BOTTOM >= FRONT_T + 0.3, "šroub by prorazil čelo"
 assert BOSS_Y - BOSS_D / 2 >= CY1 + 0.9, "sloupek zasahuje do telefonu"
 # Telefon není uprostřed, tečky každého konce na střed jeho volného místa, ať vlevo nezasahují nad telefon.
 GRILLE_XS = ((CX0 - HL_IN) / 2, (CX1 + HL_IN) / 2)
-# Ve v4 zbylo mezi dírkou a krajem víčka 0,2 mm (vytištěno 2026-11-11), aspoň 1,2 mm = tři stopy trysky.
-KEY_X = HL_IN - COV_CLR - 1.2 - KEY_HEAD / 2
+# Rozteč šroubů ve zdi kulatá, 162 mm (chtěl 2026-11-11). 165 nejde: ve v4 zbylo k okraji víčka 0,2 mm.
+# 160 nejde: hlava by se za víčkem opřela o konec telefonu.
+KEY_X = 81.0
+assert KEY_X + KEY_HEAD / 2 + 1.2 <= HL_IN - COV_CLR, "klíčová dírka u okraje víčka"
+assert KEY_X - KEY_HEAD / 2 >= CX1 + 0.5, "hlava šroubu ve zdi narazí do telefonu"
 assert np.hypot(KEY_X - CX1 - RIB_T, KEY_Y + KEY_RISE - (CY1 - 15)) > KEY_HEAD / 2 + 0.3, "hlava šroubu ve zdi zavadí o žebro"
 # Hlava šroubu ve zdi vjede za víčko až pod jeho podložku, ke koncové stěně.
 assert KEY_X + KEY_HEAD / 2 + 0.3 <= HL_IN, "hlava šroubu ve zdi narazí do koncové stěny"
