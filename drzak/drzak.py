@@ -24,7 +24,7 @@ except ImportError:
     write_3mf = None
 
 OUT = Path(__file__).parent
-VERSION = "v3"         # vytištěné verze jsou v VERZE.md a mají git tag drzak-vN
+VERSION = "v4"         # vytištěné verze jsou v VERZE.md a mají git tag drzak-vN
 sys.stdout.reconfigure(encoding="utf-8")
 
 # ---------- TELEFON (ASUS ZenFone 5Z, na šířku, výřez kamery vlevo, tlačítka nahoře) ----------
@@ -39,20 +39,20 @@ PRESS_CLR = 0.3        # žebra víčka tlačí telefon k čelu s touhle vůlí
 # za ním zbyly ~4 mm a kabel vypadával (řekl 2026-11-08). Tělo z 2026-11-08 má o 3,5 mm míň a mezera zůstala.
 # Víčko musí pasovat do už vytištěného těla, takže se tohle číslo mění jen spolu s novým tělem.
 PLUG_SPACE = 12.5
-# Zbylých 0,5 mm do jeho 4 mm (potvrdil 2026-11-10) ubírá stěna zesílená uvnitř na obou koncích stejně,
-# jak chtěl. Obrys zůstává, takže víčko z 2026-11-10 sedne do starého i nového těla.
-END_PAD = 0.5
+# Zbytek ubírá stěna zesílená uvnitř na obou koncích stejně, jak chtěl; obrys zůstává, víčko z 2026-11-10 sedne.
+# 0,5 mm doplnilo jeho 4 mm (potvrdil 2026-11-10), v čele v3 pořád mezera, o další 1 mm (řekl 2026-11-11).
+END_PAD = 1.5
 
 # ---------- TĚLO ----------
-FRONT_T, WALL, COVER_T = 2.0, 2.0, 1.8
+FRONT_T, WALL, COVER_T = 1.2, 2.0, 1.8   # čelo jako Live Display (1,0), tečky mělké a čisté
 HH = 48.0              # polovina výšky těla: rámeček nad a pod okénkem ~15 mm, nevypadá to jako telefon
 R_OUT = 10.0
 CH_FRONT, CH_BACK = 1.5, 0.6
-WIN_MARGIN, WIN_R, WIN_CH = 1.0, 4.0, 1.6   # okénko 1 mm uvnitř displeje, sražení 39° k čelu
+WIN_MARGIN, WIN_R, WIN_CH = 1.0, 4.0, 1.0   # okénko 1 mm uvnitř displeje; sražení širší než FRONT_T by byl převis přes 45°
 RIB_T = 1.6
 STOP_LEN = 12.0        # zarážky nahoře jen u konců: tlačítka jsou nahoře uprostřed
-# Zvuk ven štěrbinami: tři svislé, prostřední delší, hrana sražená jako okénko. Musí být nad prostorem pro konektor.
-SLOT_W, SLOT_PITCH, SLOT_LENS, SLOT_CH = 1.8, 3.4, (18.0, 26.0, 18.0), 0.6
+# Tečky bez sražení: štěrbiny v3 se sraženou hranou vyšly na čele 3 mm široké s žebry 0,4 mm, vytištěné ošklivé.
+GRILLE_D, GRILLE_PITCH = 2.0, 4.0
 BOSS_D = 6.5
 COV_CLR = 0.25
 BODY_G = 68.0          # tělo s víčkem podle sliceru, první tisk
@@ -177,10 +177,9 @@ def build_shell():
                               ext(rrect(WW, WH, WIN_R), FRONT_T, FRONT_T + 1)])
     # Zvuk reproduktoru a mikrofonu musí ven dopředu, štěrbiny ve víčku míří od posluchače (řekl 2026-11-10).
     for sx in (-1, 1):
-        for i, ln in zip((-1, 0, 1), SLOT_LENS):
-            x = sx * GRILLE_X + i * SLOT_PITCH
-            m -= Manifold.batch_hull([ext(rrect(SLOT_W + 2 * SLOT_CH, ln + 2 * SLOT_CH, 5, x), -1, 0),
-                                      ext(rrect(SLOT_W, ln, 5, x), SLOT_CH, FRONT_T + 1)])
+        for i in (-1, 0, 1):
+            for j in range(-3, 4):
+                m -= cyl(sx * GRILLE_X + i * GRILLE_PITCH, j * GRILLE_PITCH, -1, FRONT_T + 1, GRILLE_D)
 
     feats = [
         box(CX0, CX1, CY0 - RIB_T, CY0, z0, z1),                              # dole celá délka
@@ -437,7 +436,7 @@ def main():
             "Podlozka 2: nove vicko (kabel vychazi dozadu vyrezem dole vpravo, zvuk z koncu otvory vzadu), "
             "lista se zavesem a nozka. Lista se prisroubuje hornimi dvema sroubky vicka, nozka dvema sroubky "
             "M2.5x10 z boku skrz oka. Celkem 6 sroubku. Na zed: listu odsroubovat, vicko prisroubovat samotne. "
-            "Podlozka 3: nove celo cerne, zvuk ven tremi svislymi sterbinami u koncu, konce uvnitr o 4 mm kratsi nez prvni tisk, vicko z podlozky 2 do nej pasuje.")
+            "Podlozka 3: nove celo cerne, cela stena 1,2 mm, zvuk ven teckami 2 mm u koncu, konce uvnitr o 5 mm kratsi nez prvni tisk, vicko z podlozky 2 do nej pasuje.")
     if write_3mf is None:
         print("bambu3mf chybí: 3MF zůstává z minula, nové jsou jen STL ve složce stl/")
     else:
